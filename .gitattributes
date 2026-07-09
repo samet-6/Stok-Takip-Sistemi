@@ -1,0 +1,43 @@
+# Varsayılan: Git satır sonlarını otomatik yönetsin, repoda LF sakla
+* text=auto eol=lf
+
+# ===== Açıkça metin (repoda LF) =====
+*.cs        text eol=lf
+*.csproj    text eol=lf
+*.sln       text eol=crlf
+*.json      text eol=lf
+*.md        text eol=lf
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.css       text eol=lf
+*.html      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.sql       text eol=lf
+*.http      text eol=lf
+*.env       text eol=lf
+.gitignore  text eol=lf
+.gitattributes text eol=lf
+Dockerfile  text eol=lf
+*.conf      text eol=lf
+
+# Windows'a özgü betikler CRLF kalmalı
+*.ps1       text eol=crlf
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+
+# ===== Binary (Git dokunmasın) =====
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.svg       text eol=lf
+*.pdf       binary
+*.zip       binary
+*.pfx       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
