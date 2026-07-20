@@ -1,0 +1,4 @@
+/* Bootstrap handles the base styling; keep app-level overrides minimal here. */
+body {
+  background-color: #f8f9fa;
+}
