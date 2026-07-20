@@ -54,6 +54,7 @@ docs/
 !.env.example
 *.pfx
 *.key
+appsettings.Development.json
 
 # ===== Docker =====
 docker-compose.override.yml
