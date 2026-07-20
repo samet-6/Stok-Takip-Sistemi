@@ -37,9 +37,4 @@ public sealed class AuthController : ControllerBase
         var user = await _authService.GetMeAsync(userId, ct);
         return user is null ? Unauthorized() : Ok(user);
     }
-
-    // F3'te kaldırılacak — 403 kanıt endpoint'i.
-    [Authorize(Roles = "Admin")]
-    [HttpGet("admin-check")]
-    public IActionResult AdminCheck() => Ok(new { status = "ok" });
 }

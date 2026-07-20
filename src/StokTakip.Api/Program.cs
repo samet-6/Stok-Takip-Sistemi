@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -7,8 +8,14 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using StokTakip.Api;
 using StokTakip.Application.Auth;
+using StokTakip.Application.Categories;
 using StokTakip.Application.Common;
+using StokTakip.Application.Products;
+using StokTakip.Application.Services;
+using StokTakip.Application.StockMovements;
+using StokTakip.Application.Suppliers;
 using StokTakip.Infrastructure.Auth;
+using StokTakip.Infrastructure.Services;
 using StokTakip.Infrastructure.Data;
 using StokTakip.Infrastructure.Data.Seed;
 using StokTakip.Infrastructure.Identity;
@@ -28,6 +35,13 @@ builder.Services.AddIdentityCore<ApplicationUser>()
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Application services (business rules live in Application; registration in Api is normal).
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ISupplierService, SupplierService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IStockMovementService, StockMovementService>();
+builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Jwt configuration section is missing.");
@@ -80,7 +94,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 

@@ -1,0 +1,117 @@
+@baseUrl = http://localhost:5000
+# Token'ı almak için: önce "Login" isteğini çalıştır, yanıttaki "token" değerini
+# aşağıdaki @token değişkenine yapıştır. Admin işlemleri için admin ile giriş yap.
+@token = PASTE_JWT_HERE
+
+### Auth — Register (anonim, User rolü)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{ "email": "yeni@ornek.com", "password": "Sifre123!", "fullName": "Yeni Kullanıcı" }
+
+### Auth — Login (anonim) → token buradan alınır
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@stok.local", "password": "Admin123!" }
+
+### Auth — Me (giriş yapan kullanıcı)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Categories — Liste
+GET {{baseUrl}}/api/categories
+Authorization: Bearer {{token}}
+
+### Categories — Tekil
+GET {{baseUrl}}/api/categories/1
+Authorization: Bearer {{token}}
+
+### Categories — Oluştur (Admin)
+POST {{baseUrl}}/api/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Yeni Kategori", "description": "Açıklama" }
+
+### Categories — Güncelle (Admin)
+PUT {{baseUrl}}/api/categories/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Güncel Kategori", "description": "Yeni açıklama" }
+
+### Categories — Sil (Admin; ürünü varsa 409)
+DELETE {{baseUrl}}/api/categories/1
+Authorization: Bearer {{token}}
+
+### Suppliers — Liste
+GET {{baseUrl}}/api/suppliers
+Authorization: Bearer {{token}}
+
+### Suppliers — Tekil
+GET {{baseUrl}}/api/suppliers/1
+Authorization: Bearer {{token}}
+
+### Suppliers — Oluştur (Admin)
+POST {{baseUrl}}/api/suppliers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Yeni Tedarikçi", "contactEmail": "tedarik@ornek.com", "phone": "5551112233", "address": "Adres" }
+
+### Suppliers — Güncelle (Admin; isActive dahil)
+PUT {{baseUrl}}/api/suppliers/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Güncel Tedarikçi", "contactEmail": "tedarik@ornek.com", "phone": "5551112233", "address": "Adres", "isActive": true }
+
+### Suppliers — Sil (Admin; ürünü varsa 409)
+DELETE {{baseUrl}}/api/suppliers/1
+Authorization: Bearer {{token}}
+
+### Products — Liste (arama/filtre/sayfalama)
+GET {{baseUrl}}/api/products?search=&categoryId=&supplierId=&lowStockOnly=false&includeInactive=false&page=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### Products — Tekil (adlar + son 10 hareket)
+GET {{baseUrl}}/api/products/1
+Authorization: Bearer {{token}}
+
+### Products — Oluştur (Admin; initialStock opsiyonel → In hareketi üretir)
+POST {{baseUrl}}/api/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Yeni Ürün", "sku": "yeni-sku-01", "description": "Açıklama", "categoryId": 1, "supplierId": 1, "unitPrice": 99.90, "minStockLevel": 5, "initialStock": 20 }
+
+### Products — Güncelle (Admin; stok alanı YOK, rowVersion zorunlu)
+# rowVersion değerini önce GET /api/products/{id} yanıtından al.
+PUT {{baseUrl}}/api/products/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Güncel Ürün", "sku": "yeni-sku-01", "description": "Açıklama", "categoryId": 1, "supplierId": 1, "unitPrice": 109.90, "minStockLevel": 5, "isActive": true, "rowVersion": 0 }
+
+### Products — Sil (Admin; hareketsiz → 204 hard, hareketli → 200 soft)
+DELETE {{baseUrl}}/api/products/1
+Authorization: Bearer {{token}}
+
+### Stock Movements — Liste (?productId opsiyonel; CreatedAt DESC)
+GET {{baseUrl}}/api/stock-movements?productId=&page=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### Stock Movements — In hareketi (Admin)
+POST {{baseUrl}}/api/stock-movements
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "productId": 1, "type": "In", "quantity": 10, "note": "Mal girişi" }
+
+### Stock Movements — Out hareketi (Admin; yetersiz stokta 400)
+POST {{baseUrl}}/api/stock-movements
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "productId": 1, "type": "Out", "quantity": 5, "note": "Satış" }
