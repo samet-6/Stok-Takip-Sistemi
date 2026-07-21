@@ -19,12 +19,19 @@ public sealed class StockMovementsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<StockMovementDto>>> GetPaged(
         [FromQuery] int? productId,
+        [FromQuery] string? userId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken ct = default)
-        => Ok(await _stockMovementService.GetPagedAsync(productId, page, pageSize, ct));
+    {
+        // "Yapan" visibility: a Çalışan is locked to their own movements server-side
+        // (any client-sent userId is ignored); an Admin may filter by any userId or none.
+        var effectiveUserId = User.IsInRole("Admin") ? userId : User.FindFirstValue("sub");
+        return Ok(await _stockMovementService.GetPagedAsync(productId, effectiveUserId, page, pageSize, ct));
+    }
 
-    [Authorize(Roles = "Admin")]
+    // Stock movement is operational data — any authenticated user (Admin + Çalışan) may add it.
+    // Class-level [Authorize] applies; no role restriction here (revizyon R2).
     [HttpPost]
     public async Task<ActionResult<StockMovementResponse>> Create(
         CreateStockMovementRequest request, CancellationToken ct)

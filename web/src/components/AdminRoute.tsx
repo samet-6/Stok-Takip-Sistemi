@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router'
 import { useIsAdmin } from '../stores/authStore'
-import { useToast } from './ToastProvider'
+import { useToast } from './toastContext'
 
 /** Admin-only routes. A non-admin gets bounced to / with a warning toast. */
 export function AdminRoute() {

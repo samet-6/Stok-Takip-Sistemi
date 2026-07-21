@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query'
 import {
   Alert,
   Badge,
@@ -12,10 +17,13 @@ import {
   Spinner,
   Table,
 } from 'react-bootstrap'
-import { getProducts } from '../api/products'
+import { getProducts, deleteProduct } from '../api/products'
 import type { ProductQuery } from '../api/products'
+import type { ProductListDto } from '../types/api'
 import { getCategories } from '../api/categories'
 import { useIsAdmin } from '../stores/authStore'
+import { useToast } from '../components/toastContext'
+import { ConfirmModal } from '../components/ConfirmModal'
 import { formatCurrency } from '../lib/format'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
@@ -84,6 +92,23 @@ export default function Products() {
     queryKey: ['products', query],
     queryFn: () => getProducts(query),
     placeholderData: keepPreviousData,
+  })
+
+  const qc = useQueryClient()
+  const { showSuccess, showError } = useToast()
+  const [deleting, setDeleting] = useState<ProductListDto | null>(null)
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteProduct(id),
+    onSuccess: (outcome) => {
+      qc.invalidateQueries({ queryKey: ['products'] })
+      showSuccess(outcome === 'soft' ? 'Ürün pasife alındı' : 'Ürün silindi')
+      setDeleting(null)
+    },
+    onError: (err) => {
+      showError(problemMessage(parseProblemDetails(err)))
+      setDeleting(null)
+    },
   })
 
   const colSpan = isAdmin ? 8 : 7
@@ -224,8 +249,7 @@ export default function Products() {
                           <Button
                             size="sm"
                             variant="outline-danger"
-                            disabled
-                            title="F4c'de etkinleşir"
+                            onClick={() => setDeleting(p)}
                           >
                             Sil
                           </Button>
@@ -263,6 +287,20 @@ export default function Products() {
           )}
         </>
       )}
+
+      <ConfirmModal
+        show={deleting !== null}
+        title="Ürün Sil"
+        body={
+          <>
+            <strong>{deleting?.name}</strong> ürününü silmek istediğinize emin misiniz?
+            Hareketi olan ürün silinmez, pasife alınır.
+          </>
+        }
+        confirming={deleteMutation.isPending}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+        onHide={() => setDeleting(null)}
+      />
     </>
   )
 }

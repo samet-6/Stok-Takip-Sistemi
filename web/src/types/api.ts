@@ -17,15 +17,48 @@ export interface AuthResponse {
   user: UserDto
 }
 
-export interface RegisterRequest {
-  email: string
-  password: string
-  fullName: string
-}
-
 export interface LoginRequest {
   email: string
   password: string
+}
+
+// Self change-password (bank-style): current password required. On success the
+// backend re-issues a fresh JWT so the session survives the SecurityStamp bump.
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface ChangePasswordResponse {
+  token: string
+  expiresAt: string // ISO 8601
+}
+
+// --- Users (Çalışanlar) — admin-managed employee accounts ---
+export interface UserListDto {
+  id: string
+  email: string
+  fullName: string
+  roles: string[]
+  isActive: boolean
+  createdAt: string // ISO 8601 → UI "İşe Giriş"
+  deactivatedAt?: string | null // ISO 8601 → UI "İşten Çıkış" (only passives)
+}
+
+export interface CreateUserRequest {
+  fullName: string
+  email: string
+  password: string
+}
+
+export interface UpdateUserRequest {
+  fullName: string
+  email: string
+  password?: string | null // omitted/blank = unchanged
+}
+
+export interface UpdateUserStatusRequest {
+  isActive: boolean
 }
 
 // --- Common ---
@@ -41,6 +74,8 @@ export interface ProblemDetails {
   title?: string
   detail?: string
   status?: number
+  /** Stable machine-readable error discriminator (backend RFC 7807 extension). */
+  code?: string
   errors?: Record<string, string[]>
 }
 
@@ -50,6 +85,8 @@ export interface CategoryDto {
   name: string
   description?: string | null
   productCount: number
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CreateCategoryRequest {
@@ -66,21 +103,28 @@ export interface UpdateCategoryRequest {
 export interface SupplierDto {
   id: number
   name: string
-  contactEmail?: string | null
+  contactEmail: string
   phone?: string | null
+  address?: string | null
+  isActive: boolean
   productCount: number
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CreateSupplierRequest {
   name: string
-  contactEmail?: string | null
+  contactEmail: string
   phone?: string | null
+  address?: string | null
 }
 
 export interface UpdateSupplierRequest {
   name: string
-  contactEmail?: string | null
+  contactEmail: string
   phone?: string | null
+  address?: string | null
+  isActive: boolean
 }
 
 // --- Products ---
@@ -111,6 +155,8 @@ export interface ProductDetailDto {
   minStockLevel: number
   isActive: boolean
   rowVersion: number
+  createdAt: string
+  updatedAt: string
   recentMovements: StockMovementDto[]
 }
 

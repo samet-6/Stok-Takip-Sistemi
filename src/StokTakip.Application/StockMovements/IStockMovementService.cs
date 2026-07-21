@@ -6,6 +6,7 @@ public interface IStockMovementService
 {
     Task<PagedResult<StockMovementDto>> GetPagedAsync(
         int? productId,
+        string? userId,
         int page,
         int pageSize,
         CancellationToken ct);

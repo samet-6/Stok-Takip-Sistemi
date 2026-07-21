@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -14,6 +15,7 @@ using StokTakip.Application.Products;
 using StokTakip.Application.Services;
 using StokTakip.Application.StockMovements;
 using StokTakip.Application.Suppliers;
+using StokTakip.Application.Users;
 using StokTakip.Infrastructure.Auth;
 using StokTakip.Infrastructure.Services;
 using StokTakip.Infrastructure.Data;
@@ -27,8 +29,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
-builder.Services.AddIdentityCore<ApplicationUser>()
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+{
+    // Password policy — mirrored on the frontend (Register zod) for instant UX.
+    options.Password.RequiredLength = 8;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireDigit = true;
+    options.Password.RequireNonAlphanumeric = true;
+})
     .AddRoles<IdentityRole>()
+    .AddErrorDescriber<TurkishIdentityErrorDescriber>()
     .AddEntityFrameworkStores<AppDbContext>();
 
 // Auth
@@ -42,6 +53,7 @@ builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStockMovementService, StockMovementService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Jwt configuration section is missing.");
@@ -66,6 +78,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.Events = new JwtBearerEvents
         {
+            // Per-request session validation (ADR-0001): the token's SecurityStamp must
+            // match the DB and the user must still be active — else the token is rejected
+            // (401 via OnChallenge). This is what makes admin password reset / email change /
+            // deactivation take effect instantly instead of waiting for token expiry.
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal!;
+                var userId = principal.FindFirstValue("sub");
+                var tokenStamp = principal.FindFirstValue(TokenService.SecurityStampClaimType);
+
+                var userManager = context.HttpContext.RequestServices
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+                var user = userId is null ? null : await userManager.FindByIdAsync(userId);
+
+                if (user is null || !user.IsActive || user.SecurityStamp != tokenStamp)
+                    context.Fail("Oturum geçersiz.");
+            },
             OnChallenge = async context =>
             {
                 context.HandleResponse();

@@ -19,6 +19,7 @@ public static class DbSeeder
 
         await SeedRolesAsync(roleManager);
         var admin = await SeedAdminAsync(userManager, config);
+        await SeedUserAsync(userManager, config);
         await SeedCategoriesAsync(context);
         await SeedSuppliersAsync(context);
         await SeedProductsAndMovementsAsync(context, admin.Id);
@@ -59,6 +60,33 @@ public static class DbSeeder
 
         await userManager.AddToRoleAsync(admin, "Admin");
         return admin;
+    }
+
+    private static async Task SeedUserAsync(
+        UserManager<ApplicationUser> userManager, IConfiguration config)
+    {
+        const string userEmail = "user@stok.local";
+        if (await userManager.FindByEmailAsync(userEmail) is not null)
+            return;
+
+        var user = new ApplicationUser
+        {
+            UserName = userEmail,
+            Email = userEmail,
+            EmailConfirmed = true,
+            FullName = "Örnek Çalışan"
+            // IsActive + CreatedAt filled by DB defaults (see ApplicationUserConfiguration).
+        };
+
+        var password = config["Seed:UserPassword"]
+            ?? throw new InvalidOperationException("Seed:UserPassword is not configured.");
+
+        var result = await userManager.CreateAsync(user, password);
+        if (!result.Succeeded)
+            throw new InvalidOperationException(
+                "User seed failed: " + string.Join("; ", result.Errors.Select(e => e.Description)));
+
+        await userManager.AddToRoleAsync(user, "User");
     }
 
     private static async Task SeedCategoriesAsync(AppDbContext context)

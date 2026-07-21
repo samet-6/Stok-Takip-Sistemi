@@ -1,5 +1,11 @@
 import { apiClient } from './client'
-import type { PagedResult, ProductListDto } from '../types/api'
+import type {
+  PagedResult,
+  ProductListDto,
+  ProductDetailDto,
+  CreateProductRequest,
+  UpdateProductRequest,
+} from '../types/api'
 
 export interface ProductQuery {
   search?: string
@@ -27,4 +33,30 @@ export async function getProducts(
     params,
   })
   return data
+}
+
+export async function getProduct(id: number): Promise<ProductDetailDto> {
+  const { data } = await apiClient.get<ProductDetailDto>(`/products/${id}`)
+  return data
+}
+
+export async function createProduct(body: CreateProductRequest): Promise<void> {
+  await apiClient.post('/products', body)
+}
+
+export async function updateProduct(
+  id: number,
+  body: UpdateProductRequest,
+): Promise<void> {
+  await apiClient.put(`/products/${id}`, body)
+}
+
+/**
+ * Deletes a product. Returns 'hard' when the row was removed (204) or 'soft'
+ * when it was deactivated because movements exist (200) — the caller shows a
+ * different toast per outcome.
+ */
+export async function deleteProduct(id: number): Promise<'hard' | 'soft'> {
+  const res = await apiClient.delete(`/products/${id}`)
+  return res.status === 200 ? 'soft' : 'hard'
 }

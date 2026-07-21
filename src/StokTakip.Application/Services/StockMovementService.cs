@@ -19,7 +19,7 @@ public sealed class StockMovementService : IStockMovementService
     }
 
     public async Task<PagedResult<StockMovementDto>> GetPagedAsync(
-        int? productId, int page, int pageSize, CancellationToken ct)
+        int? productId, string? userId, int page, int pageSize, CancellationToken ct)
     {
         page = page < 1 ? 1 : page;
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -27,6 +27,10 @@ public sealed class StockMovementService : IStockMovementService
         var q = _db.StockMovements.AsNoTracking();
         if (productId is int pid)
             q = q.Where(m => m.ProductId == pid);
+        // "Yapan" filter. The controller decides the value: a Çalışan is forced to their
+        // own id (can't read others'), an Admin may pass any id or none (see all).
+        if (!string.IsNullOrEmpty(userId))
+            q = q.Where(m => m.CreatedByUserId == userId);
 
         var totalCount = await q.CountAsync(ct);
 

@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from 'react-router'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { Button, Container, Nav, Navbar } from 'react-bootstrap'
 import { useAuthStore, useIsAdmin } from '../stores/authStore'
 
@@ -23,25 +23,30 @@ export function Layout() {
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">
             <Nav className="me-auto">
-              <Nav.Link as={Link} to="/">
+              <Nav.Link as={NavLink} to="/" end>
                 Ürünler
+              </Nav.Link>
+              <Nav.Link as={NavLink} to="/stok-hareketi">
+                Stok Hareketi
               </Nav.Link>
               {isAdmin && (
                 <>
-                  <Nav.Link as={Link} to="/kategoriler">
+                  <Nav.Link as={NavLink} to="/kategoriler">
                     Kategoriler
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/tedarikciler">
+                  <Nav.Link as={NavLink} to="/tedarikciler">
                     Tedarikçiler
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/stok-hareketi">
-                    Stok Hareketi
+                  <Nav.Link as={NavLink} to="/calisanlar">
+                    Çalışanlar
                   </Nav.Link>
                 </>
               )}
             </Nav>
             <Nav className="align-items-md-center">
-              <Navbar.Text className="me-3">{user?.fullName}</Navbar.Text>
+              <Nav.Link as={NavLink} to="/hesabim" className="me-3 text-light">
+                {user?.fullName}
+              </Nav.Link>
               <Button variant="outline-light" size="sm" onClick={handleLogout}>
                 Çıkış
               </Button>

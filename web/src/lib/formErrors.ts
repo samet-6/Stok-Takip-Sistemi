@@ -15,7 +15,7 @@ export function applyServerFieldErrors<T extends FieldValues>(
   for (const [key, messages] of Object.entries(problem.errors)) {
     const field = fields.find((f) => f.toLowerCase() === key.toLowerCase())
     if (field && messages.length > 0) {
-      setError(field, { type: 'server', message: messages[0] })
+      setError(field, { type: 'server', message: messages.join(' ') })
       matched = true
     }
   }

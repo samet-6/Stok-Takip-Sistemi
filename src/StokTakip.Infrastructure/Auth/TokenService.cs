@@ -9,17 +9,23 @@ namespace StokTakip.Infrastructure.Auth;
 
 public sealed class TokenService : ITokenService
 {
+    // Claim carrying the user's Identity SecurityStamp; validated per-request in
+    // JwtBearer OnTokenValidated (see ADR-0001). Same string used on the read side.
+    public const string SecurityStampClaimType = "sstamp";
+
     private readonly JwtOptions _options;
 
     public TokenService(IOptions<JwtOptions> options) => _options = options.Value;
 
-    public TokenResult CreateToken(string userId, string email, string fullName, IList<string> roles)
+    public TokenResult CreateToken(
+        string userId, string email, string fullName, string securityStamp, IList<string> roles)
     {
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, userId),
             new(JwtRegisteredClaimNames.Email, email),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(SecurityStampClaimType, securityStamp)
         };
 
         foreach (var role in roles)

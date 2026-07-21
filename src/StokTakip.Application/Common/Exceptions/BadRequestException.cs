@@ -4,15 +4,17 @@ namespace StokTakip.Application.Common.Exceptions;
 // System.ComponentModel.DataAnnotations.ValidationException — intentional.
 public sealed class BadRequestException : Exception
 {
-    public IReadOnlyList<string> Errors { get; }
+    // Field-keyed validation errors surfaced as RFC 7807 `errors`
+    // (e.g. { "password": [...] }); null for a plain single-message 400.
+    public IReadOnlyDictionary<string, string[]>? FieldErrors { get; }
 
     public BadRequestException(string message) : base(message)
     {
-        Errors = [message];
     }
 
-    public BadRequestException(IEnumerable<string> errors) : base("Bad request.")
+    public BadRequestException(IReadOnlyDictionary<string, string[]> fieldErrors)
+        : base("Doğrulama hatası.")
     {
-        Errors = errors.ToList();
+        FieldErrors = fieldErrors;
     }
 }

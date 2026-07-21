@@ -14,14 +14,6 @@ public sealed class AuthController : ControllerBase
     public AuthController(IAuthService authService) => _authService = authService;
 
     [AllowAnonymous]
-    [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterRequest request, CancellationToken ct)
-    {
-        var response = await _authService.RegisterAsync(request, ct);
-        return StatusCode(StatusCodes.Status201Created, response);
-    }
-
-    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken ct)
         => Ok(await _authService.LoginAsync(request, ct));

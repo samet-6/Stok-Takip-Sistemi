@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Toast, ToastContainer } from 'react-bootstrap'
+import { ToastContext } from './toastContext'
 
 type ToastVariant = 'success' | 'danger'
 
@@ -9,13 +10,6 @@ interface ToastItem {
   message: string
   variant: ToastVariant
 }
-
-interface ToastApi {
-  showSuccess: (message: string) => void
-  showError: (message: string) => void
-}
-
-const ToastContext = createContext<ToastApi | null>(null)
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
@@ -50,12 +44,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </ToastContainer>
     </ToastContext.Provider>
   )
-}
-
-export function useToast(): ToastApi {
-  const ctx = useContext(ToastContext)
-  if (!ctx) {
-    throw new Error('useToast must be used within a ToastProvider')
-  }
-  return ctx
 }

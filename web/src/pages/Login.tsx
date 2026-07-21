@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { Alert, Button, Card, Form, Spinner } from 'react-bootstrap'
 import { login as loginRequest } from '../api/auth'
 import { useAuthStore } from '../stores/authStore'
-import { useToast } from '../components/ToastProvider'
+import { useToast } from '../components/toastContext'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { applyServerFieldErrors } from '../lib/formErrors'
 
@@ -95,9 +95,6 @@ export default function Login() {
               )}
             </Button>
           </Form>
-          <div className="text-center mt-3">
-            Hesabınız yok mu? <Link to="/register">Kayıt olun</Link>
-          </div>
         </Card.Body>
       </Card>
     </div>
