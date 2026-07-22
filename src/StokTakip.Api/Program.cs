@@ -154,6 +154,12 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
+    // Apply pending migrations before seeding (idempotent — no-op when up to date).
+    // The migrate call was deliberately deferred in F1c; F5a settles that debt so a
+    // fresh container comes up with a fully migrated schema.
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+
     await DbSeeder.SeedAsync(scope.ServiceProvider);
 }
 

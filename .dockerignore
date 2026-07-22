@@ -1,0 +1,10 @@
+**/bin
+**/obj
+web
+node_modules
+.git
+.github
+.vs
+docs
+screenshots
+*.md
