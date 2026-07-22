@@ -1,0 +1,51 @@
+# StokTakip — tam yığın orkestrasyonu (F5b).
+# Tüm parola/anahtar değerleri DEMO'dur; gerçek ortamda Docker secret / env_file
+# ile yönetilir, repoya girmez. Bkz. README dağıtım notları.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: stoktakip
+      POSTGRES_USER: stok               # demo — gerçek ortamda secret yönetimi gerekir
+      POSTGRES_PASSWORD: stok_demo_pw   # demo — gerçek ortamda secret yönetimi gerekir
+      # postgres:18 imajı PGDATA'yı /var/lib/postgresql/18/docker'a taşıdı; klasik
+      # düzeni geri getirip named volume'ü doğru dizine bağlıyoruz (kalıcılık kanıtı).
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "5433:5432"                     # host 5433 (lokal PG 5432 dolu); container içi 5432 KALIR
+    volumes:
+      - stok_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stok -d stoktakip"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/StokTakip.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # TUZAK: Port=5432 — 5433 yalnız host tarafı; container ağında postgres:5432.
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=stoktakip;Username=stok;Password=stok_demo_pw"  # demo
+      Jwt__Issuer: StokTakip
+      Jwt__Audience: StokTakip
+      Jwt__ExpiryHours: "8"
+      Jwt__Key: "compose-demo-jwt-key-please-change-in-production-0123456789"  # demo (32+) — gerçek ortamda secret yönetimi gerekir
+      Seed__AdminPassword: "Admin123!"  # demo — README'de yayınlanır; gerçek ortamda secret yönetimi gerekir
+      Seed__UserPassword: "User123!"    # demo — gerçek ortamda secret yönetimi gerekir
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Host'a port açılmaz — yalnız iç ağdan (web → api:8080) erişilir.
+
+  web:
+    build: ./web
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  stok_pgdata:
