@@ -5,13 +5,15 @@ import { Alert, Breadcrumb, Button, Card, Spinner } from 'react-bootstrap'
 import { getCategories } from '../api/categories'
 import { CatalogDetailView } from '../components/CatalogDetailView'
 import { CategoryFormModal } from '../components/CategoryFormModal'
+import { useIsAdmin } from '../stores/authStore'
 
-// Admin-only category detail. Same shape as TedarikciDetay: this page owns the identity
-// (breadcrumb + ad/açıklama card + edit modal); the tabbed products/movements body is the
-// shared CatalogDetailView (scope = categoryId).
+// Category detail, readable by any authenticated user (Admin + Çalışan). The edit
+// affordance is admin-only; the tabbed products/movements body is the shared
+// CatalogDetailView (scope = categoryId).
 export default function KategoriDetay() {
   const { id = '' } = useParams()
   const categoryId = Number(id)
+  const isAdmin = useIsAdmin()
   const [showEdit, setShowEdit] = useState(false)
 
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: getCategories })
@@ -46,9 +48,11 @@ export default function KategoriDetay() {
         <Card.Body>
           <div className="d-flex justify-content-between align-items-start mb-2">
             <h2 className="mb-0">{category.name}</h2>
-            <Button variant="outline-secondary" size="sm" onClick={() => setShowEdit(true)}>
-              Düzenle
-            </Button>
+            {isAdmin && (
+              <Button variant="outline-secondary" size="sm" onClick={() => setShowEdit(true)}>
+                Düzenle
+              </Button>
+            )}
           </div>
           <div className="text-muted">{category.description || '—'}</div>
         </Card.Body>

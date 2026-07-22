@@ -15,11 +15,24 @@ public sealed class SuppliersController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SupplierDto>>> GetAll(CancellationToken ct)
-        => Ok(await _supplierService.GetAllAsync(ct));
+    {
+        var suppliers = await _supplierService.GetAllAsync(ct);
+        return Ok(User.IsInRole("Admin") ? suppliers : suppliers.Select(Redact).ToList());
+    }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<SupplierDto>> GetById(int id, CancellationToken ct)
-        => Ok(await _supplierService.GetByIdAsync(id, ct));
+    {
+        // Non-null here: the service throws NotFoundException when the id is missing.
+        var supplier = await _supplierService.GetByIdAsync(id, ct);
+        return Ok(User.IsInRole("Admin") ? supplier : Redact(supplier!));
+    }
+
+    // Supplier contact details (email/phone/address) are admin-only. GET is open to every
+    // authenticated user, so the fields are stripped here for non-admins — this is the real
+    // boundary; the frontend hiding is only cosmetic.
+    private static SupplierDto Redact(SupplierDto s) =>
+        s with { ContactEmail = string.Empty, Phone = null, Address = null };
 
     [Authorize(Roles = "Admin")]
     [HttpPost]

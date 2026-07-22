@@ -6,12 +6,15 @@ import { getSuppliers } from '../api/suppliers'
 import { CatalogDetailView } from '../components/CatalogDetailView'
 import { SupplierFormModal } from '../components/SupplierFormModal'
 import { StatusChip } from '../components/StatusChip'
+import { useIsAdmin } from '../stores/authStore'
 
-// Admin-only supplier detail. This page owns the entity identity (breadcrumb + contact card +
-// edit modal); the tabbed products/movements body is the shared CatalogDetailView.
+// Supplier detail, readable by any authenticated user (Admin + Çalışan). The edit
+// affordance is admin-only; the tabbed products/movements body is the shared
+// CatalogDetailView.
 export default function TedarikciDetay() {
   const { id = '' } = useParams()
   const supplierId = Number(id)
+  const isAdmin = useIsAdmin()
   const [showEdit, setShowEdit] = useState(false)
 
   // Identity — reused from the cached list (admin arrives by clicking there).
@@ -52,26 +55,30 @@ export default function TedarikciDetay() {
                 {supplier.isActive ? 'Aktif' : 'Pasif'}
               </StatusChip>
             </div>
-            <Button variant="outline-secondary" size="sm" onClick={() => setShowEdit(true)}>
-              Düzenle
-            </Button>
+            {isAdmin && (
+              <Button variant="outline-secondary" size="sm" onClick={() => setShowEdit(true)}>
+                Düzenle
+              </Button>
+            )}
           </div>
-          <Row className="g-3">
-            <Col xs={12} md={4}>
-              <div className="text-muted small text-uppercase fw-bold">E-posta</div>
-              <a href={`mailto:${supplier.contactEmail}`} className="text-decoration-none">
-                {supplier.contactEmail}
-              </a>
-            </Col>
-            <Col xs={6} md={4}>
-              <div className="text-muted small text-uppercase fw-bold">Telefon</div>
-              <div>{supplier.phone || '—'}</div>
-            </Col>
-            <Col xs={6} md={4}>
-              <div className="text-muted small text-uppercase fw-bold">Adres</div>
-              <div>{supplier.address || '—'}</div>
-            </Col>
-          </Row>
+          {isAdmin && (
+            <Row className="g-3">
+              <Col xs={12} md={4}>
+                <div className="text-muted small text-uppercase fw-bold">E-posta</div>
+                <a href={`mailto:${supplier.contactEmail}`} className="text-decoration-none">
+                  {supplier.contactEmail}
+                </a>
+              </Col>
+              <Col xs={6} md={4}>
+                <div className="text-muted small text-uppercase fw-bold">Telefon</div>
+                <div>{supplier.phone || '—'}</div>
+              </Col>
+              <Col xs={6} md={4}>
+                <div className="text-muted small text-uppercase fw-bold">Adres</div>
+                <div>{supplier.address || '—'}</div>
+              </Col>
+            </Row>
+          )}
         </Card.Body>
       </Card>
 

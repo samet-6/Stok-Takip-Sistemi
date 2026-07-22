@@ -10,10 +10,12 @@ import { SupplierFormModal } from '../components/SupplierFormModal'
 import { PageHeader } from '../components/PageHeader'
 import { StatusChip } from '../components/StatusChip'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
+import { useIsAdmin } from '../stores/authStore'
 
 export default function Suppliers() {
   const qc = useQueryClient()
   const { showSuccess, showError } = useToast()
+  const isAdmin = useIsAdmin()
 
   const listQuery = useQuery({ queryKey: ['suppliers'], queryFn: getSuppliers })
 
@@ -49,9 +51,11 @@ export default function Suppliers() {
         title="Tedarikçiler"
         subtitle="Ürün tedarik eden firmalar ve iletişim bilgileri."
         action={
-          <Button variant="primary" onClick={openCreate}>
-            Yeni Tedarikçi
-          </Button>
+          isAdmin ? (
+            <Button variant="primary" onClick={openCreate}>
+              Yeni Tedarikçi
+            </Button>
+          ) : undefined
         }
       />
 
@@ -65,17 +69,17 @@ export default function Suppliers() {
             <thead>
               <tr>
                 <th>Ad</th>
-                <th>E-posta</th>
-                <th>Telefon</th>
+                {isAdmin && <th>E-posta</th>}
+                {isAdmin && <th>Telefon</th>}
                 <th className="text-end">Ürün sayısı</th>
                 <th>Durum</th>
-                <th className="text-end">İşlemler</th>
+                {isAdmin && <th className="text-end">İşlemler</th>}
               </tr>
             </thead>
             <tbody>
               {listQuery.data!.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                  <td colSpan={isAdmin ? 6 : 3} className="text-center text-muted py-4">
                     Tedarikçi yok.
                   </td>
                 </tr>
@@ -87,27 +91,29 @@ export default function Suppliers() {
                         {s.name}
                       </Link>
                     </td>
-                    <td className="text-muted">{s.contactEmail}</td>
-                    <td className="text-muted">{s.phone}</td>
+                    {isAdmin && <td className="text-muted">{s.contactEmail}</td>}
+                    {isAdmin && <td className="text-muted">{s.phone}</td>}
                     <td className="text-end">{s.productCount}</td>
                     <td>
                       <StatusChip variant={s.isActive ? 'neutral' : 'crit'}>
                         {s.isActive ? 'Aktif' : 'Pasif'}
                       </StatusChip>
                     </td>
-                    <td className="text-end text-nowrap">
-                      <Button
-                        size="sm"
-                        variant="outline-secondary"
-                        className="me-2"
-                        onClick={() => openEdit(s)}
-                      >
-                        Düzenle
-                      </Button>
-                      <Button size="sm" variant="outline-danger" onClick={() => setDeleting(s)}>
-                        Sil
-                      </Button>
-                    </td>
+                    {isAdmin && (
+                      <td className="text-end text-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          className="me-2"
+                          onClick={() => openEdit(s)}
+                        >
+                          Düzenle
+                        </Button>
+                        <Button size="sm" variant="outline-danger" onClick={() => setDeleting(s)}>
+                          Sil
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

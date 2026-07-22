@@ -35,15 +35,17 @@ export const router = createBrowserRouter([
           // Operational + self-service: any authenticated user (Admin + Çalışan).
           { path: 'stok-hareketi', element: <StockMovement /> },
           { path: 'hesabim', element: <Hesabim /> },
+          // Catalog reads open to any authenticated user (Admin + Çalışan); the
+          // create/edit/delete affordances inside these pages are gated on isAdmin.
+          { path: 'kategoriler', element: <Categories /> },
+          { path: 'kategoriler/:id', element: <KategoriDetay /> },
+          { path: 'tedarikciler', element: <Suppliers /> },
+          { path: 'tedarikciler/:id', element: <TedarikciDetay /> },
           {
             element: <AdminRoute />,
             children: [
               { path: 'urunler/yeni', element: <ProductForm /> },
               { path: 'urunler/:id/duzenle', element: <ProductForm /> },
-              { path: 'kategoriler', element: <Categories /> },
-              { path: 'kategoriler/:id', element: <KategoriDetay /> },
-              { path: 'tedarikciler', element: <Suppliers /> },
-              { path: 'tedarikciler/:id', element: <TedarikciDetay /> },
               { path: 'calisanlar', element: <Calisanlar /> },
               { path: 'calisanlar/:id/hareketler', element: <CalisanHareketleri /> },
             ],

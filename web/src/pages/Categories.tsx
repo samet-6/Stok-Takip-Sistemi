@@ -9,10 +9,12 @@ import { ConfirmModal } from '../components/ConfirmModal'
 import { CategoryFormModal } from '../components/CategoryFormModal'
 import { PageHeader } from '../components/PageHeader'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
+import { useIsAdmin } from '../stores/authStore'
 
 export default function Categories() {
   const qc = useQueryClient()
   const { showSuccess, showError } = useToast()
+  const isAdmin = useIsAdmin()
 
   const listQuery = useQuery({ queryKey: ['categories'], queryFn: getCategories })
 
@@ -48,9 +50,11 @@ export default function Categories() {
         title="Kategoriler"
         subtitle="Ürün kategorileri ve içerdikleri ürün sayısı."
         action={
-          <Button variant="primary" onClick={openCreate}>
-            Yeni Kategori
-          </Button>
+          isAdmin ? (
+            <Button variant="primary" onClick={openCreate}>
+              Yeni Kategori
+            </Button>
+          ) : undefined
         }
       />
 
@@ -66,13 +70,13 @@ export default function Categories() {
                 <th>Ad</th>
                 <th>Açıklama</th>
                 <th className="text-end">Ürün sayısı</th>
-                <th className="text-end">İşlemler</th>
+                {isAdmin && <th className="text-end">İşlemler</th>}
               </tr>
             </thead>
             <tbody>
               {listQuery.data!.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center text-muted py-4">
+                  <td colSpan={isAdmin ? 4 : 3} className="text-center text-muted py-4">
                     Kategori yok.
                   </td>
                 </tr>
@@ -86,19 +90,21 @@ export default function Categories() {
                     </td>
                     <td className="text-muted">{c.description}</td>
                     <td className="text-end">{c.productCount}</td>
-                    <td className="text-end text-nowrap">
-                      <Button
-                        size="sm"
-                        variant="outline-secondary"
-                        className="me-2"
-                        onClick={() => openEdit(c)}
-                      >
-                        Düzenle
-                      </Button>
-                      <Button size="sm" variant="outline-danger" onClick={() => setDeleting(c)}>
-                        Sil
-                      </Button>
-                    </td>
+                    {isAdmin && (
+                      <td className="text-end text-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          className="me-2"
+                          onClick={() => openEdit(c)}
+                        >
+                          Düzenle
+                        </Button>
+                        <Button size="sm" variant="outline-danger" onClick={() => setDeleting(c)}>
+                          Sil
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

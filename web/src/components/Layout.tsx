@@ -29,18 +29,16 @@ export function Layout() {
               <Nav.Link as={NavLink} to="/stok-hareketi">
                 Stok Hareketi
               </Nav.Link>
+              <Nav.Link as={NavLink} to="/kategoriler">
+                Kategoriler
+              </Nav.Link>
+              <Nav.Link as={NavLink} to="/tedarikciler">
+                Tedarikçiler
+              </Nav.Link>
               {isAdmin && (
-                <>
-                  <Nav.Link as={NavLink} to="/kategoriler">
-                    Kategoriler
-                  </Nav.Link>
-                  <Nav.Link as={NavLink} to="/tedarikciler">
-                    Tedarikçiler
-                  </Nav.Link>
-                  <Nav.Link as={NavLink} to="/calisanlar">
-                    Çalışanlar
-                  </Nav.Link>
-                </>
+                <Nav.Link as={NavLink} to="/calisanlar">
+                  Çalışanlar
+                </Nav.Link>
               )}
             </Nav>
             <Nav className="align-items-md-center">
