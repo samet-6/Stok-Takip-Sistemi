@@ -5,10 +5,7 @@ namespace StokTakip.Application.StockMovements;
 public interface IStockMovementService
 {
     Task<PagedResult<StockMovementDto>> GetPagedAsync(
-        int? productId,
-        string? userId,
-        int page,
-        int pageSize,
+        StockMovementQuery query,
         CancellationToken ct);
 
     Task<StockMovementResponse> CreateAsync(

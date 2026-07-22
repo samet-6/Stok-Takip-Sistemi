@@ -18,16 +18,13 @@ public sealed class StockMovementsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<StockMovementDto>>> GetPaged(
-        [FromQuery] int? productId,
-        [FromQuery] string? userId,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10,
-        CancellationToken ct = default)
+        [FromQuery] StockMovementQuery query, CancellationToken ct = default)
     {
         // "Yapan" visibility: a Çalışan is locked to their own movements server-side
         // (any client-sent userId is ignored); an Admin may filter by any userId or none.
-        var effectiveUserId = User.IsInRole("Admin") ? userId : User.FindFirstValue("sub");
-        return Ok(await _stockMovementService.GetPagedAsync(productId, effectiveUserId, page, pageSize, ct));
+        var effectiveUserId = User.IsInRole("Admin") ? query.UserId : User.FindFirstValue("sub");
+        var effective = query with { UserId = effectiveUserId };
+        return Ok(await _stockMovementService.GetPagedAsync(effective, ct));
     }
 
     // Stock movement is operational data — any authenticated user (Admin + Çalışan) may add it.

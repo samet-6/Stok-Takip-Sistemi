@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Pagination, Spinner } from 'react-bootstrap'
+import { Alert, Spinner } from 'react-bootstrap'
 import { getStockMovements } from '../api/stockMovements'
 import { getUsers } from '../api/users'
 import { MovementsTable } from '../components/MovementsTable'
+import { Pager } from '../components/Pager'
 
 // Admin-only drilldown: one employee's stock movements (read-only, with "Yapan").
 export default function CalisanHareketleri() {
@@ -45,21 +46,7 @@ export default function CalisanHareketleri() {
       ) : (
         <>
           <MovementsTable items={data.items} showCreatedBy />
-
-          {data.totalPages > 1 && (
-            <Pagination className="justify-content-center">
-              <Pagination.Prev disabled={page <= 1} onClick={() => setPage(page - 1)} />
-              {Array.from({ length: data.totalPages }, (_, i) => i + 1).map((n) => (
-                <Pagination.Item key={n} active={n === page} onClick={() => setPage(n)}>
-                  {n}
-                </Pagination.Item>
-              ))}
-              <Pagination.Next
-                disabled={page >= data.totalPages}
-                onClick={() => setPage(page + 1)}
-              />
-            </Pagination>
-          )}
+          <Pager page={page} totalPages={data.totalPages} onChange={setPage} />
         </>
       )}
     </>

@@ -39,8 +39,14 @@ public sealed class ProductService : IProductService
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             // Provider-agnostic: EF translates ToLower()+Contains to LOWER(...) LIKE.
+            // Category/Supplier names join through the (required) navigations so a search
+            // like "elektronik" also matches products by their category/supplier.
             var term = query.Search.Trim().ToLower();
-            q = q.Where(p => p.Name.ToLower().Contains(term) || p.SKU.ToLower().Contains(term));
+            q = q.Where(p =>
+                p.Name.ToLower().Contains(term) ||
+                p.SKU.ToLower().Contains(term) ||
+                p.Category.Name.ToLower().Contains(term) ||
+                p.Supplier.Name.ToLower().Contains(term));
         }
 
         var totalCount = await q.CountAsync(ct);

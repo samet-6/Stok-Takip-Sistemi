@@ -3,22 +3,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Form,
-  Modal,
-  Pagination,
-  Row,
-  Spinner,
-} from 'react-bootstrap'
+import { Alert, Button, Card, Col, Form, Modal, Row, Spinner } from 'react-bootstrap'
 import { changePassword } from '../api/account'
 import { getStockMovements } from '../api/stockMovements'
 import { useAuthStore } from '../stores/authStore'
 import { useToast } from '../components/toastContext'
 import { MovementsTable } from '../components/MovementsTable'
+import { Pager } from '../components/Pager'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { applyServerFieldErrors } from '../lib/formErrors'
 
@@ -145,20 +136,7 @@ export default function Hesabim() {
         <>
           <MovementsTable items={data.items} />
 
-          {data.totalPages > 1 && (
-            <Pagination className="justify-content-center">
-              <Pagination.Prev disabled={page <= 1} onClick={() => setPage(page - 1)} />
-              {Array.from({ length: data.totalPages }, (_, i) => i + 1).map((n) => (
-                <Pagination.Item key={n} active={n === page} onClick={() => setPage(n)}>
-                  {n}
-                </Pagination.Item>
-              ))}
-              <Pagination.Next
-                disabled={page >= data.totalPages}
-                onClick={() => setPage(page + 1)}
-              />
-            </Pagination>
-          )}
+          <Pager page={page} totalPages={data.totalPages} onChange={setPage} />
         </>
       )}
 

@@ -6,17 +6,7 @@ import {
   useQueryClient,
   keepPreviousData,
 } from '@tanstack/react-query'
-import {
-  Alert,
-  Badge,
-  Button,
-  Col,
-  Form,
-  Pagination,
-  Row,
-  Spinner,
-  Table,
-} from 'react-bootstrap'
+import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap'
 import { getProducts, deleteProduct } from '../api/products'
 import type { ProductQuery } from '../api/products'
 import type { ProductListDto } from '../types/api'
@@ -25,9 +15,17 @@ import { useIsAdmin } from '../stores/authStore'
 import { useToast } from '../components/toastContext'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { formatCurrency } from '../lib/format'
+import { Pager } from '../components/Pager'
+import { canonicalParams } from '../lib/urlParams'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
 const PAGE_SIZE = 10
+
+// Canonical URL (single source of truth): fixed key order, and `page=1` (the default) is
+// dropped so the address bar stays stable instead of churning param order / leaving `?page=1`.
+const PARAM_ORDER = ['search', 'categoryId', 'lowStockOnly', 'includeInactive', 'page'] as const
+const PARAM_DEFAULTS = { page: '1' }
+const normalizeParams = (p: URLSearchParams) => canonicalParams(p, PARAM_ORDER, PARAM_DEFAULTS)
 
 export default function Products() {
   const isAdmin = useIsAdmin()
@@ -59,23 +57,30 @@ export default function Products() {
       if (searchInput) next.set('search', searchInput)
       else next.delete('search')
       next.set('page', '1')
-      setSearchParams(next)
+      setSearchParams(normalizeParams(next))
     }, 300)
     return () => clearTimeout(t)
   }, [searchInput, searchParams, setSearchParams])
+
+  // Keep the box in sync when the URL's search changes from outside (e.g. the navbar
+  // home link clears it) — otherwise the local input would survive and the debounce
+  // effect above would re-push it, resurrecting a search the user meant to leave.
+  useEffect(() => {
+    setSearchInput(search)
+  }, [search])
 
   // Changing any filter resets to page 1; paging keeps everything else.
   const setFilter = (mutate: (p: URLSearchParams) => void) => {
     const next = new URLSearchParams(searchParams)
     mutate(next)
     next.set('page', '1')
-    setSearchParams(next)
+    setSearchParams(normalizeParams(next))
   }
 
   const goToPage = (n: number) => {
     const next = new URLSearchParams(searchParams)
     next.set('page', String(n))
-    setSearchParams(next)
+    setSearchParams(normalizeParams(next))
   }
 
   const clearFilters = () => {
@@ -262,29 +267,11 @@ export default function Products() {
             </tbody>
           </Table>
 
-          {productsQuery.data!.totalPages > 1 && (
-            <Pagination className="justify-content-center">
-              <Pagination.Prev
-                disabled={page <= 1}
-                onClick={() => goToPage(page - 1)}
-              />
-              {Array.from({ length: productsQuery.data!.totalPages }, (_, i) => i + 1).map(
-                (n) => (
-                  <Pagination.Item
-                    key={n}
-                    active={n === page}
-                    onClick={() => goToPage(n)}
-                  >
-                    {n}
-                  </Pagination.Item>
-                ),
-              )}
-              <Pagination.Next
-                disabled={page >= productsQuery.data!.totalPages}
-                onClick={() => goToPage(page + 1)}
-              />
-            </Pagination>
-          )}
+          <Pager
+            page={page}
+            totalPages={productsQuery.data!.totalPages}
+            onChange={goToPage}
+          />
         </>
       )}
 

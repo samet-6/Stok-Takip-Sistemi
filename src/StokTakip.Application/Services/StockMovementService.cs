@@ -19,18 +19,39 @@ public sealed class StockMovementService : IStockMovementService
     }
 
     public async Task<PagedResult<StockMovementDto>> GetPagedAsync(
-        int? productId, string? userId, int page, int pageSize, CancellationToken ct)
+        StockMovementQuery query, CancellationToken ct)
     {
-        page = page < 1 ? 1 : page;
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
         var q = _db.StockMovements.AsNoTracking();
-        if (productId is int pid)
+        if (query.ProductId is int pid)
             q = q.Where(m => m.ProductId == pid);
+        if (query.Type is StockMovementType movementType)
+            q = q.Where(m => m.Type == movementType);
         // "Yapan" filter. The controller decides the value: a Çalışan is forced to their
         // own id (can't read others'), an Admin may pass any id or none (see all).
-        if (!string.IsNullOrEmpty(userId))
-            q = q.Where(m => m.CreatedByUserId == userId);
+        if (!string.IsNullOrEmpty(query.UserId))
+            q = q.Where(m => m.CreatedByUserId == query.UserId);
+        // Supplier/Category narrow by the movement's product (join through Product).
+        if (query.SupplierId is int supplierId)
+            q = q.Where(m => m.Product.SupplierId == supplierId);
+        if (query.CategoryId is int categoryId)
+            q = q.Where(m => m.Product.CategoryId == categoryId);
+        // CreatedAt range, inclusive on both ends. CreatedAt is a timestamptz (UTC) column;
+        // the backend only compares instants and stays timezone-agnostic. The frontend, which
+        // knows the viewer's timezone, sends offset-aware ISO boundaries (e.g. the local day
+        // start as ...+03:00), so the comparison below runs UTC-vs-UTC. See sunum.md (tarih filtresi).
+        if (query.From is DateTime from)
+        {
+            var fromUtc = ToUtc(from);
+            q = q.Where(m => m.CreatedAt >= fromUtc);
+        }
+        if (query.To is DateTime to)
+        {
+            var toUtc = ToUtc(to);
+            q = q.Where(m => m.CreatedAt <= toUtc);
+        }
 
         var totalCount = await q.CountAsync(ct);
 
@@ -96,4 +117,15 @@ public sealed class StockMovementService : IStockMovementService
 
         return new StockMovementResponse(dto, product.StockQuantity);
     }
+
+    // Normalizes a filter bound to a UTC instant for the timestamptz comparison. Offset-aware
+    // input (the expected path: frontend sends the local day boundary with its offset) arrives
+    // as Local/Utc and is converted; an offset-less value (Unspecified) is a defensive fallback
+    // treated as already-UTC so Npgsql accepts it.
+    private static DateTime ToUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
 }

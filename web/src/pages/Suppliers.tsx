@@ -1,32 +1,13 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Badge, Button, Form, Modal, Spinner, Table } from 'react-bootstrap'
-import {
-  getSuppliers,
-  createSupplier,
-  updateSupplier,
-  deleteSupplier,
-} from '../api/suppliers'
+import { Badge, Button, Spinner, Table } from 'react-bootstrap'
+import { getSuppliers, deleteSupplier } from '../api/suppliers'
 import type { SupplierDto } from '../types/api'
 import { useToast } from '../components/toastContext'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { SupplierFormModal } from '../components/SupplierFormModal'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
-
-const schema = z.object({
-  name: z.string().min(1, 'Bu alan zorunludur').max(150, 'En fazla 150 karakter olabilir'),
-  contactEmail: z
-    .string()
-    .min(1, 'Bu alan zorunludur')
-    .email('Geçerli bir e-posta girin')
-    .max(150, 'En fazla 150 karakter olabilir'),
-  phone: z.string().max(20, 'En fazla 20 karakter olabilir'),
-  address: z.string().max(300, 'En fazla 300 karakter olabilir'),
-  isActive: z.boolean(),
-})
-type SupplierForm = z.infer<typeof schema>
 
 export default function Suppliers() {
   const qc = useQueryClient()
@@ -38,57 +19,14 @@ export default function Suppliers() {
   const [editing, setEditing] = useState<SupplierDto | null>(null)
   const [deleting, setDeleting] = useState<SupplierDto | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setError,
-    formState: { errors },
-  } = useForm<SupplierForm>({ resolver: zodResolver(schema) })
-
   const openCreate = () => {
     setEditing(null)
-    reset({ name: '', contactEmail: '', phone: '', address: '', isActive: true })
     setShowForm(true)
   }
   const openEdit = (s: SupplierDto) => {
     setEditing(s)
-    reset({
-      name: s.name,
-      contactEmail: s.contactEmail,
-      phone: s.phone ?? '',
-      address: s.address ?? '',
-      isActive: s.isActive,
-    })
     setShowForm(true)
   }
-
-  const saveMutation = useMutation({
-    mutationFn: (values: SupplierForm) => {
-      const base = {
-        name: values.name,
-        contactEmail: values.contactEmail,
-        phone: values.phone || null,
-        address: values.address || null,
-      }
-      return editing
-        ? updateSupplier(editing.id, { ...base, isActive: values.isActive })
-        : createSupplier(base)
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['suppliers'] })
-      showSuccess(editing ? 'Tedarikçi güncellendi' : 'Tedarikçi eklendi')
-      setShowForm(false)
-    },
-    onError: (err) => {
-      const problem = parseProblemDetails(err)
-      if (problem.status === 409) {
-        setError('name', { type: 'server', message: problemMessage(problem) })
-      } else {
-        showError(problemMessage(problem))
-      }
-    },
-  })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteSupplier(id),
@@ -138,7 +76,11 @@ export default function Suppliers() {
             ) : (
               listQuery.data!.map((s) => (
                 <tr key={s.id} className={s.isActive ? undefined : 'table-secondary'}>
-                  <td>{s.name}</td>
+                  <td>
+                    <Link to={`/tedarikciler/${s.id}`} className="text-decoration-none">
+                      {s.name}
+                    </Link>
+                  </td>
                   <td className="text-muted">{s.contactEmail}</td>
                   <td className="text-muted">{s.phone}</td>
                   <td className="text-end">{s.productCount}</td>
@@ -156,11 +98,7 @@ export default function Suppliers() {
                     >
                       Düzenle
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-danger"
-                      onClick={() => setDeleting(s)}
-                    >
+                    <Button size="sm" variant="outline-danger" onClick={() => setDeleting(s)}>
                       Sil
                     </Button>
                   </td>
@@ -171,76 +109,11 @@ export default function Suppliers() {
         </Table>
       )}
 
-      {/* Create / Edit modal */}
-      <Modal show={showForm} onHide={() => setShowForm(false)} centered>
-        <Form onSubmit={handleSubmit((v) => saveMutation.mutate(v))} noValidate>
-          <Modal.Header closeButton>
-            <Modal.Title>{editing ? 'Tedarikçi Düzenle' : 'Yeni Tedarikçi'}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form.Group className="mb-3" controlId="supplier-name">
-              <Form.Label>Ad</Form.Label>
-              <Form.Control {...register('name')} isInvalid={!!errors.name} autoFocus />
-              <Form.Control.Feedback type="invalid">
-                {errors.name?.message}
-              </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="supplier-email">
-              <Form.Label>E-posta</Form.Label>
-              <Form.Control
-                type="email"
-                {...register('contactEmail')}
-                isInvalid={!!errors.contactEmail}
-              />
-              <Form.Control.Feedback type="invalid">
-                {errors.contactEmail?.message}
-              </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="supplier-phone">
-              <Form.Label>Telefon</Form.Label>
-              <Form.Control {...register('phone')} isInvalid={!!errors.phone} />
-              <Form.Control.Feedback type="invalid">
-                {errors.phone?.message}
-              </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="supplier-address">
-              <Form.Label>Adres</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                {...register('address')}
-                isInvalid={!!errors.address}
-              />
-              <Form.Control.Feedback type="invalid">
-                {errors.address?.message}
-              </Form.Control.Feedback>
-            </Form.Group>
-            {editing && (
-              <Form.Check
-                type="switch"
-                id="supplier-isactive"
-                label="Aktif"
-                {...register('isActive')}
-              />
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowForm(false)} disabled={saveMutation.isPending}>
-              Vazgeç
-            </Button>
-            <Button type="submit" variant="primary" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? (
-                <>
-                  <Spinner as="span" size="sm" animation="border" className="me-2" />
-                  Kaydediliyor…
-                </>
-              ) : (
-                'Kaydet'
-              )}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+      <SupplierFormModal
+        show={showForm}
+        supplier={editing}
+        onHide={() => setShowForm(false)}
+      />
 
       <ConfirmModal
         show={deleting !== null}
