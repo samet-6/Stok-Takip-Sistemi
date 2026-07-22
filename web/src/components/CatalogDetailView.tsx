@@ -1,11 +1,12 @@
 import { useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, Card, Col, Form, Row, Spinner, Tab, Tabs } from 'react-bootstrap'
+import { Alert, Button, Col, Form, Row, Spinner, Tab, Tabs } from 'react-bootstrap'
 import { getProducts } from '../api/products'
 import { getStockMovements } from '../api/stockMovements'
 import { ProductMiniTable } from './ProductMiniTable'
 import { MovementsTable } from './MovementsTable'
 import { Pager } from './Pager'
+import { StatTile } from './StatTile'
 import { formatCurrency, dayStartIso, dayEndIso } from '../lib/format'
 import { canonicalParams } from '../lib/urlParams'
 import type { MovementType } from '../types/api'
@@ -84,26 +85,15 @@ export function CatalogDetailView({
   return (
     <>
       {/* Summary tiles */}
-      <Row className="g-3 mb-4">
-        <Col xs={12} md={4}>
-          <Card body>
-            <div className="text-muted small text-uppercase fw-bold">Toplam Ürün</div>
-            <div className="fs-4 fw-bold">{products.length}</div>
-          </Card>
-        </Col>
-        <Col xs={6} md={4}>
-          <Card body>
-            <div className="text-muted small text-uppercase fw-bold">Düşük Stoklu</div>
-            <div className="fs-4 fw-bold text-warning">{lowStockCount}</div>
-          </Card>
-        </Col>
-        <Col xs={6} md={4}>
-          <Card body>
-            <div className="text-muted small text-uppercase fw-bold">Toplam Stok Değeri</div>
-            <div className="fs-4 fw-bold">{formatCurrency(totalValue)}</div>
-          </Card>
-        </Col>
-      </Row>
+      <div className="stat-tiles cols-3 mb-4">
+        <StatTile label="Toplam Ürün" value={products.length} />
+        <StatTile
+          label="Düşük Stoklu"
+          value={lowStockCount}
+          valueColor={lowStockCount > 0 ? 'var(--warn)' : undefined}
+        />
+        <StatTile label="Toplam Stok Değeri" value={formatCurrency(totalValue)} />
+      </div>
 
       <Tabs activeKey={tab} onSelect={(k) => selectTab(k ?? 'urun')} className="mb-3">
         <Tab eventKey="urun" title={`Ürünler (${products.length})`}>

@@ -15,7 +15,7 @@ export function Layout() {
 
   return (
     <>
-      <Navbar bg="dark" variant="dark" expand="md" className="mb-4">
+      <Navbar expand="md" className="app-navbar mb-4" data-bs-theme="dark">
         <Container>
           <Navbar.Brand as={Link} to="/">
             StokTakip

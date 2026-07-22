@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Badge, Breadcrumb, Button, Card, Col, Row, Spinner } from 'react-bootstrap'
+import { Alert, Breadcrumb, Button, Card, Col, Row, Spinner } from 'react-bootstrap'
 import { getSuppliers } from '../api/suppliers'
 import { CatalogDetailView } from '../components/CatalogDetailView'
 import { SupplierFormModal } from '../components/SupplierFormModal'
+import { StatusChip } from '../components/StatusChip'
 
 // Admin-only supplier detail. This page owns the entity identity (breadcrumb + contact card +
 // edit modal); the tabbed products/movements body is the shared CatalogDetailView.
@@ -47,9 +48,9 @@ export default function TedarikciDetay() {
           <div className="d-flex justify-content-between align-items-start mb-3">
             <div className="d-flex align-items-center gap-2">
               <h2 className="mb-0">{supplier.name}</h2>
-              <Badge bg={supplier.isActive ? 'success' : 'secondary'}>
+              <StatusChip variant={supplier.isActive ? 'neutral' : 'crit'}>
                 {supplier.isActive ? 'Aktif' : 'Pasif'}
-              </Badge>
+              </StatusChip>
             </div>
             <Button variant="outline-secondary" size="sm" onClick={() => setShowEdit(true)}>
               Düzenle

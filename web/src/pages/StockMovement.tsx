@@ -7,6 +7,7 @@ import { getProducts } from '../api/products'
 import { createStockMovement } from '../api/stockMovements'
 import type { CreateStockMovementRequest } from '../types/api'
 import { useToast } from '../components/toastContext'
+import { PageHeader } from '../components/PageHeader'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
 const schema = z.object({
@@ -61,7 +62,7 @@ export default function StockMovement() {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <h2 className="mb-4">Stok Hareketi</h2>
+      <PageHeader title="Stok Hareketi" subtitle="Ürün girişi veya çıkışı ekleyin." />
 
       {productsQuery.isLoading ? (
         <div className="text-center py-5">

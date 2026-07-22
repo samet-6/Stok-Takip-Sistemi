@@ -6,6 +6,7 @@ import { getStockMovements } from '../api/stockMovements'
 import { getUsers } from '../api/users'
 import { MovementsTable } from '../components/MovementsTable'
 import { Pager } from '../components/Pager'
+import { PageHeader } from '../components/PageHeader'
 
 // Admin-only drilldown: one employee's stock movements (read-only, with "Yapan").
 export default function CalisanHareketleri() {
@@ -26,14 +27,14 @@ export default function CalisanHareketleri() {
 
   return (
     <>
-      <div className="mb-4">
-        <Link to="/calisanlar" className="text-decoration-none small">
+      <div className="mb-2">
+        <Link to="/calisanlar" className="breadcrumb-nav text-decoration-none">
           ← Çalışanlar
         </Link>
-        <h2 className="mb-0 mt-1">
-          {employee ? `${employee.fullName} — Hareketleri` : 'Çalışan Hareketleri'}
-        </h2>
       </div>
+      <PageHeader
+        title={employee ? `${employee.fullName} — Hareketleri` : 'Çalışan Hareketleri'}
+      />
 
       {movementsQuery.isLoading ? (
         <div className="text-center py-5">

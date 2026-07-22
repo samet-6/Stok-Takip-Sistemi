@@ -10,6 +10,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useToast } from '../components/toastContext'
 import { MovementsTable } from '../components/MovementsTable'
 import { Pager } from '../components/Pager'
+import { PageHeader } from '../components/PageHeader'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { applyServerFieldErrors } from '../lib/formErrors'
 
@@ -101,7 +102,7 @@ export default function Hesabim() {
 
   return (
     <>
-      <h2 className="mb-4">Hesabım</h2>
+      <PageHeader title="Hesabım" subtitle="Hesap bilgileriniz ve stok hareketleriniz." />
 
       <Card className="mb-4">
         <Card.Body>

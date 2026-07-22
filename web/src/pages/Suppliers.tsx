@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Badge, Button, Spinner, Table } from 'react-bootstrap'
+import { Button, Spinner, Table } from 'react-bootstrap'
 import { getSuppliers, deleteSupplier } from '../api/suppliers'
 import type { SupplierDto } from '../types/api'
 import { useToast } from '../components/toastContext'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { SupplierFormModal } from '../components/SupplierFormModal'
+import { PageHeader } from '../components/PageHeader'
+import { StatusChip } from '../components/StatusChip'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
 export default function Suppliers() {
@@ -43,70 +45,75 @@ export default function Suppliers() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Tedarikçiler</h2>
-        <Button variant="primary" onClick={openCreate}>
-          Yeni Tedarikçi
-        </Button>
-      </div>
+      <PageHeader
+        title="Tedarikçiler"
+        subtitle="Ürün tedarik eden firmalar ve iletişim bilgileri."
+        action={
+          <Button variant="primary" onClick={openCreate}>
+            Yeni Tedarikçi
+          </Button>
+        }
+      />
 
       {listQuery.isLoading ? (
         <div className="text-center py-5">
           <Spinner animation="border" />
         </div>
       ) : (
-        <Table hover responsive className="align-middle">
-          <thead>
-            <tr>
-              <th>Ad</th>
-              <th>E-posta</th>
-              <th>Telefon</th>
-              <th className="text-end">Ürün sayısı</th>
-              <th>Durum</th>
-              <th className="text-end">İşlemler</th>
-            </tr>
-          </thead>
-          <tbody>
-            {listQuery.data!.length === 0 ? (
+        <div className="table-card">
+          <Table hover responsive className="align-middle">
+            <thead>
               <tr>
-                <td colSpan={6} className="text-center text-muted py-4">
-                  Tedarikçi yok.
-                </td>
+                <th>Ad</th>
+                <th>E-posta</th>
+                <th>Telefon</th>
+                <th className="text-end">Ürün sayısı</th>
+                <th>Durum</th>
+                <th className="text-end">İşlemler</th>
               </tr>
-            ) : (
-              listQuery.data!.map((s) => (
-                <tr key={s.id} className={s.isActive ? undefined : 'table-secondary'}>
-                  <td>
-                    <Link to={`/tedarikciler/${s.id}`} className="text-decoration-none">
-                      {s.name}
-                    </Link>
-                  </td>
-                  <td className="text-muted">{s.contactEmail}</td>
-                  <td className="text-muted">{s.phone}</td>
-                  <td className="text-end">{s.productCount}</td>
-                  <td>
-                    <Badge bg={s.isActive ? 'success' : 'secondary'}>
-                      {s.isActive ? 'Aktif' : 'Pasif'}
-                    </Badge>
-                  </td>
-                  <td className="text-end text-nowrap">
-                    <Button
-                      size="sm"
-                      variant="outline-secondary"
-                      className="me-2"
-                      onClick={() => openEdit(s)}
-                    >
-                      Düzenle
-                    </Button>
-                    <Button size="sm" variant="outline-danger" onClick={() => setDeleting(s)}>
-                      Sil
-                    </Button>
+            </thead>
+            <tbody>
+              {listQuery.data!.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center text-muted py-4">
+                    Tedarikçi yok.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
+              ) : (
+                listQuery.data!.map((s) => (
+                  <tr key={s.id} className={s.isActive ? undefined : 'row-muted'}>
+                    <td>
+                      <Link to={`/tedarikciler/${s.id}`} className="text-decoration-none">
+                        {s.name}
+                      </Link>
+                    </td>
+                    <td className="text-muted">{s.contactEmail}</td>
+                    <td className="text-muted">{s.phone}</td>
+                    <td className="text-end">{s.productCount}</td>
+                    <td>
+                      <StatusChip variant={s.isActive ? 'neutral' : 'crit'}>
+                        {s.isActive ? 'Aktif' : 'Pasif'}
+                      </StatusChip>
+                    </td>
+                    <td className="text-end text-nowrap">
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        className="me-2"
+                        onClick={() => openEdit(s)}
+                      >
+                        Düzenle
+                      </Button>
+                      <Button size="sm" variant="outline-danger" onClick={() => setDeleting(s)}>
+                        Sil
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </div>
       )}
 
       <SupplierFormModal

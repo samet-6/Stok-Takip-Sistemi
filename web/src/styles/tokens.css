@@ -1,0 +1,72 @@
+/* ============================================================================
+   Design tokens — the single source of truth for the visual system (K4).
+   Palette + radius/shadow scale as CSS custom properties. Light is the shipped
+   theme; the dark token set is defined but OPT-IN only (activated by
+   `data-theme="dark"` on <html>) — no theme toggle is wired yet and Bootstrap's
+   own dark mode (`data-bs-theme`) is not enabled, so we deliberately do NOT
+   auto-switch on `prefers-color-scheme`. Keeping the dark tokens here makes a
+   future toggle a one-line wiring change instead of a re-theme.
+
+   Values are taken verbatim from the approved slate/navy mockups.
+   Spacing is intentionally NOT tokenised: Bootstrap's spacing utilities
+   (m-*, p-*, g-*) already own that scale — a parallel custom scale would be
+   dead code.
+   ============================================================================ */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  /* slate/navy neutrals — grey biased toward navy, not pure */
+  --bg: #eef1f6;
+  --card: #ffffff;
+  --hairline: #e2e6ef;
+  --hairline-strong: #d4dae6;
+  --text: #1a2233;
+  --muted: #63708b;
+  --faint: #8a94a8;
+
+  /* brand */
+  --brand: #1e3a5f;
+  --brand-2: #2c5488;
+  --brand-ink: #ffffff;
+  --brand-tint: #e9f0f8;
+
+  /* semantic — quiet, reserved for exceptions */
+  --ok: #1f7a53;
+  --ok-bg: #e7f3ec;
+  --warn: #a65a00;
+  --warn-bg: #fbeedd;
+  --crit: #a52a2a;
+  --crit-bg: #f8e7e7;
+  --neutral-bg: #eef1f6;
+  --neutral-tx: #56617a;
+
+  --shadow-sm: 0 1px 2px rgba(24, 38, 63, 0.06);
+  --shadow-md: 0 4px 16px rgba(24, 38, 63, 0.08);
+  --radius: 10px;
+}
+
+/* Opt-in dark theme (future toggle). Mirrors the mock's dark token set. */
+:root[data-theme='dark'] {
+  --bg: #0e1420;
+  --card: #161d2b;
+  --hairline: #263149;
+  --hairline-strong: #33405c;
+  --text: #e7ecf5;
+  --muted: #96a2ba;
+  --faint: #6b7690;
+  --brand: #3f6ea3;
+  --brand-2: #6ea0d6;
+  --brand-ink: #f4f8ff;
+  --brand-tint: #1a2740;
+  --ok: #4cc38a;
+  --ok-bg: #11301f;
+  --warn: #e2a24a;
+  --warn-bg: #33260f;
+  --crit: #e0736f;
+  --crit-bg: #33191a;
+  --neutral-bg: #202a3e;
+  --neutral-tx: #a7b2c8;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+}

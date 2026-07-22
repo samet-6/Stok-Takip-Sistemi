@@ -6,7 +6,7 @@ import {
   useQueryClient,
   keepPreviousData,
 } from '@tanstack/react-query'
-import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap'
+import { Alert, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap'
 import { getProducts, deleteProduct } from '../api/products'
 import type { ProductQuery } from '../api/products'
 import type { ProductListDto } from '../types/api'
@@ -14,6 +14,9 @@ import { getCategories } from '../api/categories'
 import { useIsAdmin } from '../stores/authStore'
 import { useToast } from '../components/toastContext'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { PageHeader } from '../components/PageHeader'
+import { StatusChip } from '../components/StatusChip'
+import { StatTile } from '../components/StatTile'
 import { formatCurrency } from '../lib/format'
 import { Pager } from '../components/Pager'
 import { canonicalParams } from '../lib/urlParams'
@@ -99,6 +102,21 @@ export default function Products() {
     placeholderData: keepPreviousData,
   })
 
+  // Inventory summary tiles — a separate, unfiltered fetch (matches the K2/K3 detail
+  // pattern: pageSize:100 + client-side aggregation). Toplam Ürün uses the DB totalCount
+  // (accurate beyond 100); Düşük/Stok Değeri are over ACTIVE items only (passives aren't
+  // current stock), Pasif counts the archived ones.
+  const summaryQuery = useQuery({
+    queryKey: ['products', 'summary'],
+    queryFn: () => getProducts({ includeInactive: true, pageSize: 100 }),
+  })
+  const summaryItems = summaryQuery.data?.items ?? []
+  const activeSummary = summaryItems.filter((p) => p.isActive)
+  const totalProducts = summaryQuery.data?.totalCount ?? summaryItems.length
+  const passiveCount = summaryItems.filter((p) => !p.isActive).length
+  const lowStockCount = activeSummary.filter((p) => p.stockQuantity <= p.minStockLevel).length
+  const totalStockValue = activeSummary.reduce((s, p) => s + p.unitPrice * p.stockQuantity, 0)
+
   const qc = useQueryClient()
   const { showSuccess, showError } = useToast()
   const [deleting, setDeleting] = useState<ProductListDto | null>(null)
@@ -120,14 +138,30 @@ export default function Products() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Ürünler</h2>
-        {isAdmin && (
-          <Link to="/urunler/yeni" className="btn btn-primary">
-            Yeni Ürün
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="Ürünler"
+        subtitle="Envanterdeki tüm ürünler, stok durumu ve tedarikçileri."
+        action={
+          isAdmin && (
+            <Link to="/urunler/yeni" className="btn btn-primary">
+              Yeni Ürün
+            </Link>
+          )
+        }
+      />
+
+      {summaryQuery.data && (
+        <div className="stat-tiles mb-4">
+          <StatTile label="Toplam Ürün" value={totalProducts} />
+          <StatTile
+            label="Düşük Stok"
+            value={lowStockCount}
+            valueColor={lowStockCount > 0 ? 'var(--warn)' : undefined}
+          />
+          <StatTile label="Pasif" value={passiveCount} />
+          <StatTile label="Stok Değeri" value={formatCurrency(totalStockValue)} />
+        </div>
+      )}
 
       {/* Filter bar */}
       <Row className="g-2 mb-3 align-items-center">
@@ -197,75 +231,78 @@ export default function Products() {
         </div>
       ) : (
         <>
-          <Table hover responsive className="align-middle">
-            <thead>
-              <tr>
-                <th>Ad</th>
-                <th>SKU</th>
-                <th>Kategori</th>
-                <th>Tedarikçi</th>
-                <th className="text-end">Fiyat</th>
-                <th>Stok</th>
-                <th>Durum</th>
-                {isAdmin && <th className="text-end">İşlemler</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {productsQuery.data!.items.length === 0 ? (
+          <div className="table-card">
+            <Table hover responsive className="align-middle">
+              <thead>
                 <tr>
-                  <td colSpan={colSpan} className="text-center text-muted py-4">
-                    Ürün bulunamadı.{' '}
-                    <Button variant="link" className="p-0 align-baseline" onClick={clearFilters}>
-                      Filtreleri temizle
-                    </Button>
-                  </td>
+                  <th>Ad</th>
+                  <th>SKU</th>
+                  <th>Kategori</th>
+                  <th>Tedarikçi</th>
+                  <th className="text-end">Fiyat</th>
+                  <th className="text-end">Stok</th>
+                  <th>Durum</th>
+                  {isAdmin && <th className="text-end">İşlemler</th>}
                 </tr>
-              ) : (
-                productsQuery.data!.items.map((p) => {
-                  const low = p.stockQuantity <= p.minStockLevel
-                  return (
-                    <tr key={p.id} className={p.isActive ? undefined : 'table-secondary'}>
-                      <td>
-                        <Link to={`/urunler/${p.id}`}>{p.name}</Link>
-                      </td>
-                      <td>{p.sku}</td>
-                      <td>{p.categoryName}</td>
-                      <td>{p.supplierName}</td>
-                      <td className="text-end">{formatCurrency(p.unitPrice)}</td>
-                      <td>
-                        {p.stockQuantity}{' '}
-                        <Badge bg={low ? 'danger' : 'success'}>
-                          {low ? 'Düşük' : 'Yeterli'}
-                        </Badge>
-                      </td>
-                      <td>
-                        <Badge bg={p.isActive ? 'success' : 'secondary'}>
-                          {p.isActive ? 'Aktif' : 'Pasif'}
-                        </Badge>
-                      </td>
-                      {isAdmin && (
-                        <td className="text-end text-nowrap">
-                          <Link
-                            to={`/urunler/${p.id}/duzenle`}
-                            className="btn btn-sm btn-outline-secondary me-2"
-                          >
-                            Düzenle
-                          </Link>
-                          <Button
-                            size="sm"
-                            variant="outline-danger"
-                            onClick={() => setDeleting(p)}
-                          >
-                            Sil
-                          </Button>
+              </thead>
+              <tbody>
+                {productsQuery.data!.items.length === 0 ? (
+                  <tr>
+                    <td colSpan={colSpan} className="text-center text-muted py-4">
+                      Ürün bulunamadı.{' '}
+                      <Button variant="link" className="p-0 align-baseline" onClick={clearFilters}>
+                        Filtreleri temizle
+                      </Button>
+                    </td>
+                  </tr>
+                ) : (
+                  productsQuery.data!.items.map((p) => {
+                    const low = p.stockQuantity <= p.minStockLevel
+                    return (
+                      <tr key={p.id} className={p.isActive ? undefined : 'row-muted'}>
+                        <td>
+                          <Link to={`/urunler/${p.id}`}>{p.name}</Link>
                         </td>
-                      )}
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </Table>
+                        <td className="text-muted">{p.sku}</td>
+                        <td>{p.categoryName}</td>
+                        <td>{p.supplierName}</td>
+                        <td className="text-end">{formatCurrency(p.unitPrice)}</td>
+                        <td className="text-end">
+                          {low ? (
+                            <StatusChip variant="warn">{p.stockQuantity} · Düşük</StatusChip>
+                          ) : (
+                            p.stockQuantity
+                          )}
+                        </td>
+                        <td>
+                          <StatusChip variant={p.isActive ? 'neutral' : 'crit'}>
+                            {p.isActive ? 'Aktif' : 'Pasif'}
+                          </StatusChip>
+                        </td>
+                        {isAdmin && (
+                          <td className="text-end text-nowrap">
+                            <Link
+                              to={`/urunler/${p.id}/duzenle`}
+                              className="btn btn-sm btn-outline-secondary me-2"
+                            >
+                              Düzenle
+                            </Link>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              onClick={() => setDeleting(p)}
+                            >
+                              Sil
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </Table>
+          </div>
 
           <Pager
             page={page}

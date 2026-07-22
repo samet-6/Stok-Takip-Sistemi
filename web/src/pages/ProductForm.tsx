@@ -10,6 +10,7 @@ import { getCategories } from '../api/categories'
 import { getSuppliers } from '../api/suppliers'
 import type { CreateProductRequest, UpdateProductRequest } from '../types/api'
 import { useToast } from '../components/toastContext'
+import { PageHeader } from '../components/PageHeader'
 import { applyServerFieldErrors } from '../lib/formErrors'
 import { parseProblemDetails, problemMessage, hasFieldErrors } from '../lib/problemDetails'
 
@@ -170,7 +171,7 @@ export default function ProductForm() {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <h2 className="mb-4">{isEdit ? 'Ürün Düzenle' : 'Yeni Ürün'}</h2>
+      <PageHeader title={isEdit ? 'Ürün Düzenle' : 'Yeni Ürün'} />
 
       <Form onSubmit={handleSubmit((v) => saveMutation.mutate(v))} noValidate>
         <Form.Group className="mb-3" controlId="product-name">

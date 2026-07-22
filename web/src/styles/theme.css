@@ -1,0 +1,302 @@
+/* ============================================================================
+   Theme layer — consumes tokens.css. Two parts:
+     1) Bootstrap CSS-variable overrides: map Bootstrap's own `--bs-*` design
+        tokens onto ours so every Bootstrap/react-bootstrap component inherits
+        the slate/navy theme with NO per-component rules. This is the DRY core.
+     2) Component patterns Bootstrap variables can't reach: navbar, tables,
+        status chips, stat tiles, page header.
+   Depends on tokens.css being imported first.
+   ============================================================================ */
+
+/* ---- 1) Bootstrap variable overrides ------------------------------------- */
+:root {
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--text);
+  --bs-secondary-color: var(--muted);
+  --bs-tertiary-color: var(--faint);
+  --bs-emphasis-color: var(--text);
+  --bs-border-color: var(--hairline);
+  --bs-link-color: var(--brand-2);
+  --bs-link-hover-color: var(--brand);
+  --bs-font-sans-serif: var(--font-sans);
+  --bs-border-radius: var(--radius);
+  --bs-border-radius-sm: 8px;
+  --bs-border-radius-lg: 12px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Buttons — retheme via Bootstrap's own component variables (not selectors). */
+.btn {
+  --bs-btn-border-radius: 9px;
+  font-weight: 600;
+}
+.btn-primary {
+  --bs-btn-bg: var(--brand);
+  --bs-btn-border-color: var(--brand);
+  --bs-btn-hover-bg: var(--brand-2);
+  --bs-btn-hover-border-color: var(--brand-2);
+  --bs-btn-active-bg: var(--brand-2);
+  --bs-btn-active-border-color: var(--brand-2);
+  --bs-btn-disabled-bg: var(--brand);
+  --bs-btn-disabled-border-color: var(--brand);
+  --bs-btn-color: var(--brand-ink);
+  --bs-btn-hover-color: var(--brand-ink);
+  --bs-btn-active-color: var(--brand-ink);
+  --bs-btn-disabled-color: var(--brand-ink);
+}
+.btn-outline-secondary {
+  --bs-btn-color: var(--muted);
+  --bs-btn-border-color: var(--hairline-strong);
+  --bs-btn-hover-bg: var(--neutral-bg);
+  --bs-btn-hover-color: var(--text);
+  --bs-btn-hover-border-color: var(--hairline-strong);
+  --bs-btn-active-bg: var(--neutral-bg);
+  --bs-btn-active-color: var(--text);
+  --bs-btn-active-border-color: var(--hairline-strong);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--crit);
+  --bs-btn-border-color: var(--crit-bg);
+  --bs-btn-hover-bg: var(--crit-bg);
+  --bs-btn-hover-color: var(--crit);
+  --bs-btn-hover-border-color: var(--crit);
+  --bs-btn-active-bg: var(--crit-bg);
+  --bs-btn-active-color: var(--crit);
+  --bs-btn-active-border-color: var(--crit);
+}
+
+/* Cards, modals, form controls inherit surface + hairline from the tokens. */
+.card {
+  --bs-card-bg: var(--card);
+  --bs-card-border-color: var(--hairline);
+  --bs-card-border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.modal {
+  --bs-modal-bg: var(--card);
+  --bs-modal-border-color: var(--hairline);
+  --bs-modal-border-radius: var(--radius);
+}
+.form-control,
+.form-select {
+  --bs-border-color: var(--hairline-strong);
+  background-color: var(--card);
+  color: var(--text);
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 0.2rem rgba(44, 84, 136, 0.18);
+}
+.alert-danger {
+  --bs-alert-color: var(--crit);
+  --bs-alert-bg: var(--crit-bg);
+  --bs-alert-border-color: var(--crit-bg);
+}
+
+/* Consistent, on-brand focus ring for keyboard users. */
+a:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--brand-2);
+  outline-offset: 2px;
+}
+
+/* ---- 2) Component patterns ----------------------------------------------- */
+
+/* Tabular figures so numbers line up; right-aligned cells are numeric by
+   convention, so they get tabular figures automatically. */
+.tnum,
+.table > :not(caption) > * > .text-end {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Navbar — corporate navy. `data-bs-theme="dark"` on the Navbar gives light
+   nav text/toggler; we only supply the navy surface + active-link pill. */
+.app-navbar {
+  background-color: var(--brand);
+  box-shadow: var(--shadow-sm);
+}
+.app-navbar .navbar-brand {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.app-navbar .nav-link.active {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+
+/* Tables — hairline rows, quiet header with a stronger baseline rule. */
+.table {
+  --bs-table-color: var(--text);
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--hairline);
+  vertical-align: middle;
+  margin-bottom: 0;
+}
+.table > thead > tr > th {
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--hairline-strong);
+}
+.table > tbody > tr > td,
+.table > thead > tr > th {
+  padding: 0.85rem 1rem;
+}
+
+/* De-emphasised (passive/archived) table rows — subtle, not alarming. */
+.table > tbody > tr.row-muted > td {
+  background-color: var(--neutral-bg);
+  color: var(--muted);
+}
+
+/* Underline-style tabs with a navy active marker (detail pages). */
+.nav-tabs {
+  --bs-nav-tabs-link-active-color: var(--brand);
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 600;
+}
+.nav-tabs .nav-link {
+  color: var(--muted);
+  border-width: 0 0 2px;
+  margin-bottom: -1px;
+}
+.nav-tabs .nav-link:hover {
+  border-color: transparent;
+  color: var(--text);
+}
+.nav-tabs .nav-link.active {
+  background: transparent;
+  border-color: transparent transparent var(--brand);
+}
+
+/* A table (or any block) presented as an elevated surface. */
+.table-card {
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.table-card > .table-responsive {
+  border-radius: inherit;
+}
+
+/* Status chips — quiet by default; colour reserved for exceptions.
+   neutral = Aktif · ok = Giriş · warn = Düşük · crit = Pasif/Çıkış */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.chip-neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral-tx);
+}
+.chip-ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.chip-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.chip-crit {
+  background: var(--crit-bg);
+  color: var(--crit);
+}
+
+/* Stat tiles — the summary row (Products) and detail mini-summaries share this. */
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.stat-tiles.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 767.98px) {
+  .stat-tiles,
+  .stat-tiles.cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.stat-tile {
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
+}
+.stat-tile .stat-label {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.stat-tile .stat-value {
+  font-size: 27px;
+  font-weight: 700;
+  margin-top: 8px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Page header — title + optional subtitle + optional single primary action. */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.page-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.page-header .page-subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Muted breadcrumb used on detail pages. */
+.breadcrumb-nav {
+  font-size: 13px;
+  color: var(--muted);
+}
+.breadcrumb-nav a {
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

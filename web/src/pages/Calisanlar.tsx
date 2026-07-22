@@ -4,11 +4,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Badge, Button, Form, Modal, Spinner, Table } from 'react-bootstrap'
+import { Button, Form, Modal, Spinner, Table } from 'react-bootstrap'
 import { getUsers, createUser, updateUser, setUserStatus } from '../api/users'
 import type { UserListDto } from '../types/api'
 import { useToast } from '../components/toastContext'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { PageHeader } from '../components/PageHeader'
+import { StatusChip } from '../components/StatusChip'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { applyServerFieldErrors } from '../lib/formErrors'
 import { formatDate } from '../lib/format'
@@ -138,12 +140,15 @@ export default function Calisanlar() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Çalışanlar</h2>
-        <Button variant="primary" onClick={openCreate}>
-          Yeni Eleman
-        </Button>
-      </div>
+      <PageHeader
+        title="Çalışanlar"
+        subtitle="Sistemi kullanan çalışan hesapları."
+        action={
+          <Button variant="primary" onClick={openCreate}>
+            Yeni Eleman
+          </Button>
+        }
+      />
 
       <div className="d-flex flex-wrap align-items-center gap-3 mb-3">
         <Form.Control
@@ -167,83 +172,85 @@ export default function Calisanlar() {
           <Spinner animation="border" />
         </div>
       ) : (
-        <Table hover responsive className="align-middle">
-          <thead>
-            <tr>
-              <th>Ad Soyad</th>
-              <th>E-posta</th>
-              <th>İşe Giriş</th>
-              {showPassive && <th>İşten Çıkış</th>}
-              <th className="text-end">İşlemler</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
+        <div className="table-card">
+          <Table hover responsive className="align-middle">
+            <thead>
               <tr>
-                <td colSpan={showPassive ? 5 : 4} className="text-center text-muted py-4">
-                  {term
-                    ? 'Aramayla eşleşen çalışan yok.'
-                    : showPassive
-                      ? 'İşten çıkarılan çalışan yok.'
-                      : 'Çalışan yok.'}
-                </td>
+                <th>Ad Soyad</th>
+                <th>E-posta</th>
+                <th>İşe Giriş</th>
+                {showPassive && <th>İşten Çıkış</th>}
+                <th className="text-end">İşlemler</th>
               </tr>
-            ) : (
-              rows.map((u) => (
-                <tr key={u.id} className={showPassive ? 'table-secondary' : undefined}>
-                  <td>
-                    {/* Active names link to that employee's movement logs; passive rows
-                        are plain text — reactivate first, then drill in (spec). */}
-                    {u.isActive ? (
-                      <Link to={`/calisanlar/${u.id}/hareketler`}>{u.fullName}</Link>
-                    ) : (
-                      <>
-                        {u.fullName}
-                        <Badge bg="secondary" className="ms-2">
-                          İşten çıkarıldı
-                        </Badge>
-                      </>
-                    )}
-                  </td>
-                  <td className="text-muted">{u.email}</td>
-                  <td>{formatDate(u.createdAt)}</td>
-                  {showPassive && (
-                    <td>{u.deactivatedAt ? formatDate(u.deactivatedAt) : '—'}</td>
-                  )}
-                  <td className="text-end text-nowrap">
-                    {u.isActive ? (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline-secondary"
-                          className="me-2"
-                          onClick={() => openEdit(u)}
-                        >
-                          Düzenle
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline-danger"
-                          onClick={() => setStatusTarget({ user: u, toActive: false })}
-                        >
-                          İşten Çıkar
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline-success"
-                        onClick={() => setStatusTarget({ user: u, toActive: true })}
-                      >
-                        İşe Geri Al
-                      </Button>
-                    )}
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={showPassive ? 5 : 4} className="text-center text-muted py-4">
+                    {term
+                      ? 'Aramayla eşleşen çalışan yok.'
+                      : showPassive
+                        ? 'İşten çıkarılan çalışan yok.'
+                        : 'Çalışan yok.'}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
+              ) : (
+                rows.map((u) => (
+                  <tr key={u.id} className={showPassive ? 'row-muted' : undefined}>
+                    <td>
+                      {/* Active names link to that employee's movement logs; passive rows
+                          are plain text — reactivate first, then drill in (spec). */}
+                      {u.isActive ? (
+                        <Link to={`/calisanlar/${u.id}/hareketler`}>{u.fullName}</Link>
+                      ) : (
+                        <span className="d-inline-flex align-items-center gap-2">
+                          {u.fullName}
+                          <StatusChip variant="crit" dot={false}>
+                            İşten çıkarıldı
+                          </StatusChip>
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-muted">{u.email}</td>
+                    <td>{formatDate(u.createdAt)}</td>
+                    {showPassive && (
+                      <td>{u.deactivatedAt ? formatDate(u.deactivatedAt) : '—'}</td>
+                    )}
+                    <td className="text-end text-nowrap">
+                      {u.isActive ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            className="me-2"
+                            onClick={() => openEdit(u)}
+                          >
+                            Düzenle
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => setStatusTarget({ user: u, toActive: false })}
+                          >
+                            İşten Çıkar
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline-success"
+                          onClick={() => setStatusTarget({ user: u, toActive: true })}
+                        >
+                          İşe Geri Al
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </div>
       )}
 
       {/* Create / Edit modal */}
