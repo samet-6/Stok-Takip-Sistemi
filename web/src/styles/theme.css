@@ -94,6 +94,23 @@ body {
   border-color: var(--brand-2);
   box-shadow: 0 0 0 0.2rem rgba(44, 84, 136, 0.18);
 }
+/* Radios / checkboxes / switches. Bootstrap leaves these on the global border
+   colour (our faint hairline) and its own default blue — both read washed-out
+   on the slate surfaces, so the control gets an explicitly visible border
+   (>=3:1 against white, per WCAG non-text contrast) and the navy brand fill. */
+.form-check-input {
+  border-color: var(--muted);
+  background-color: var(--card);
+}
+.form-check-input:checked {
+  background-color: var(--brand);
+  border-color: var(--brand);
+}
+.form-check-input:focus {
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 0.2rem rgba(44, 84, 136, 0.18);
+}
+
 .alert-danger {
   --bs-alert-color: var(--crit);
   --bs-alert-bg: var(--crit-bg);
@@ -282,6 +299,49 @@ a:focus-visible,
 }
 .page-header .page-subtitle {
   margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Auth (login) — the only page rendered OUTSIDE the app chrome (no navbar), so
+   it owns the full viewport: centred brand lock-up above the sign-in card. */
+.auth-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.auth-brand {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.auth-wordmark {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--brand);
+}
+.auth-tagline {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-md);
+}
+.auth-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.auth-subtitle {
+  margin: 4px 0 20px;
   color: var(--muted);
   font-size: 14px;
 }

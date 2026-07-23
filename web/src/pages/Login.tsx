@@ -52,12 +52,15 @@ export default function Login() {
   }
 
   return (
-    <div className="d-flex justify-content-center">
-      <Card style={{ width: '100%', maxWidth: 420 }} className="mt-4 shadow-sm">
-        <Card.Body>
-          <Card.Title as="h2" className="mb-4 text-center">
-            Giriş Yap
-          </Card.Title>
+    <div className="auth-shell">
+      <div className="auth-brand">
+        <p className="auth-wordmark">Stok Takip Sistemi</p>
+        <p className="auth-tagline">Stok ve Envanter Yönetim Sistemi</p>
+      </div>
+      <Card className="auth-card">
+        <Card.Body className="p-4">
+          <h1 className="auth-title">Giriş Yap</h1>
+          <p className="auth-subtitle">Devam etmek için hesabınızla giriş yapın.</p>
           {formError && <Alert variant="danger">{formError}</Alert>}
           <Form onSubmit={handleSubmit(onSubmit)} noValidate>
             <Form.Group className="mb-3" controlId="login-email">

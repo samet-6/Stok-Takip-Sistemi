@@ -49,11 +49,13 @@ export default function StockMovement() {
       }
       return createStockMovement(body)
     },
-    onSuccess: (res) => {
+    onSuccess: (res, vars) => {
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['product', res.movement.productId] })
       showSuccess(`Hareket kaydedildi. Yeni stok: ${res.newStockQuantity}`)
-      reset(DEFAULTS)
+      // Keep the product and direction selected — entering several movements for
+      // the same product is the common case; only the per-entry fields are cleared.
+      reset({ ...DEFAULTS, productId: vars.productId, type: vars.type })
     },
     onError: (err) => {
       showError(problemMessage(parseProblemDetails(err)))
