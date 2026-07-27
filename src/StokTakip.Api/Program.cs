@@ -31,7 +31,7 @@ builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbConte
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
-    // Password policy — mirrored on the frontend (Register zod) for instant UX.
+    // Password policy — mirrored by the frontend zod schemas for instant UX.
     options.Password.RequiredLength = 8;
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
@@ -47,7 +47,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Application services (business rules live in Application; registration in Api is normal).
+// Application services
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -78,7 +78,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.Events = new JwtBearerEvents
         {
-            // Per-request session validation (ADR-0001): the token's SecurityStamp must
+            // Per-request session validation: the token's SecurityStamp must
             // match the DB and the user must still be active — else the token is rejected
             // (401 via OnChallenge). This is what makes admin password reset / email change /
             // deactivation take effect instantly instead of waiting for token expiry.
@@ -154,9 +154,8 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    // Apply pending migrations before seeding (idempotent — no-op when up to date).
-    // The migrate call was deliberately deferred in F1c; F5a settles that debt so a
-    // fresh container comes up with a fully migrated schema.
+    // Apply pending migrations before seeding (idempotent — no-op when up to date),
+    // so a fresh database comes up with a fully migrated schema.
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 

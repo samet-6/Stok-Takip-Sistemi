@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Identity;
 
 namespace StokTakip.Infrastructure.Identity;
 
-// Turkish descriptions for the Identity errors we can surface to the user
-// (password policy on register). Codes are kept from the base so they stay stable.
+// Turkish descriptions for the Identity password-policy errors surfaced to the user.
+// Codes are kept from the base so they stay stable.
 public sealed class TurkishIdentityErrorDescriber : IdentityErrorDescriber
 {
     public override IdentityError PasswordTooShort(int length) => new()

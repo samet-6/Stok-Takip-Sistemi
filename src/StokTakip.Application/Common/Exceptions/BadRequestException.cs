@@ -1,7 +1,7 @@
 namespace StokTakip.Application.Common.Exceptions;
 
 // Named BadRequestException (not ValidationException) to avoid clashing with
-// System.ComponentModel.DataAnnotations.ValidationException — intentional.
+// System.ComponentModel.DataAnnotations.ValidationException.
 public sealed class BadRequestException : Exception
 {
     // Field-keyed validation errors surfaced as RFC 7807 `errors`

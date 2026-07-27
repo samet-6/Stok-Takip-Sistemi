@@ -49,8 +49,7 @@ export default function Calisanlar() {
 
   // Default view = active only; toggle reveals the İşten çıkarılanlar (passive) list.
   const [showPassive, setShowPassive] = useState(false)
-  // Client-side name/email search — the /users endpoint returns all rows and the
-  // employee count is small, so no server-side search param is needed here.
+  // Client-side name/email search — the /users endpoint returns all rows at once.
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<UserListDto | null>(null)

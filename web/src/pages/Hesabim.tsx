@@ -51,7 +51,7 @@ export default function Hesabim() {
   const [page, setPage] = useState(1)
 
   // Own movements only. The server forces a Çalışan to their own id; passing the
-  // caller's own id also constrains an Admin to their own here (spec).
+  // caller's own id also constrains an Admin to their own here.
   const movementsQuery = useQuery({
     queryKey: ['my-movements', user?.id, page],
     queryFn: () => getStockMovements({ userId: user!.id, page, pageSize: 10 }),
@@ -78,7 +78,7 @@ export default function Hesabim() {
         newPassword: values.newPassword,
       }),
     onSuccess: (res) => {
-      // Adopt the fresh JWT so the SecurityStamp bump doesn't drop the session (ADR-0001).
+      // Adopt the fresh JWT so the SecurityStamp bump doesn't drop the session.
       if (user) applyAuth({ token: res.token, expiresAt: res.expiresAt, user })
       showSuccess('Şifreniz güncellendi')
       setShowPwModal(false)

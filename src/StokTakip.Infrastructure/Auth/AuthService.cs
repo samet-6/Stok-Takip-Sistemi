@@ -54,7 +54,7 @@ public sealed class AuthService : IAuthService
 
         // ChangePasswordAsync verifies the current password and bumps the SecurityStamp
         // on success — which would invalidate the caller's own token. We re-issue a fresh
-        // JWT below (carrying the new stamp) so the user stays logged in (ADR-0001).
+        // JWT below (carrying the new stamp) so the user stays logged in.
         var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
         {

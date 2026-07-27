@@ -10,7 +10,7 @@ namespace StokTakip.Infrastructure.Auth;
 public sealed class TokenService : ITokenService
 {
     // Claim carrying the user's Identity SecurityStamp; validated per-request in
-    // JwtBearer OnTokenValidated (see ADR-0001). Same string used on the read side.
+    // JwtBearer OnTokenValidated (Program.cs). Same string used on the read side.
     public const string SecurityStampClaimType = "sstamp";
 
     private readonly JwtOptions _options;

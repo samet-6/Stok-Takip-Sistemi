@@ -4,9 +4,8 @@ using StokTakip.Application.Users;
 
 namespace StokTakip.Infrastructure.Identity;
 
-// Admin-only employee (Çalışan) account management. Lives in Infrastructure because
-// it drives ASP.NET Core Identity (UserManager) directly. The single seeded Admin is
-// never managed through this service — admin-targeted edit/deactivate is rejected.
+// Admin-only employee (Çalışan) account management on top of UserManager. The single
+// seeded Admin is never managed here — admin-targeted edit/deactivate is rejected.
 public sealed class UserService : IUserService
 {
     private const string EmployeeRole = "User";
@@ -80,11 +79,9 @@ public sealed class UserService : IUserService
                 throw new ConflictException("Bu e-posta zaten kayıtlı");
         }
 
-        // Password reset (optional) is applied first: a policy failure throws before any
-        // other field is persisted. UserManager persists each step immediately. Admin has
-        // no current password, and no token providers are configured, so we validate
-        // against the policy up front (avoids a password-less window) then swap the hash;
-        // AddPasswordAsync bumps the SecurityStamp used for forced logout.
+        // Optional password reset. The policy is checked before anything is touched, then the
+        // new hash is only staged in memory. A fresh SecurityStamp invalidates the target's
+        // existing tokens (forced logout).
         if (!string.IsNullOrWhiteSpace(request.Password))
         {
             foreach (var validator in _userManager.PasswordValidators)
@@ -95,28 +92,48 @@ public sealed class UserService : IUserService
                         new Dictionary<string, string[]> { ["password"] = [PasswordPolicy.Message] });
             }
 
-            await _userManager.RemovePasswordAsync(user);
-            var add = await _userManager.AddPasswordAsync(user, request.Password);
-            if (!add.Succeeded)
-                throw new BadRequestException(
-                    new Dictionary<string, string[]> { ["password"] = [PasswordPolicy.Message] });
+            user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
+            user.SecurityStamp = Guid.NewGuid().ToString();
         }
 
         if (emailChanged)
         {
-            var setEmail = await _userManager.SetEmailAsync(user, request.Email);
-            if (!setEmail.Succeeded)
-                throw new BadRequestException("Geçerli bir e-posta girin.");
-
-            // Keep UserName + NormalizedUserName in sync so login-by-email keeps working.
-            await _userManager.SetUserNameAsync(user, request.Email);
-
-            // Force logout of the target: invalidate any existing token (ADR-0001).
-            await _userManager.UpdateSecurityStampAsync(user);
+            // UserName tracks Email so login-by-email keeps working; both normalized forms are
+            // what Identity actually looks up by. Changing the email also forces a logout.
+            user.Email = request.Email;
+            user.NormalizedEmail = _userManager.NormalizeEmail(request.Email);
+            user.UserName = request.Email;
+            user.NormalizedUserName = _userManager.NormalizeName(request.Email);
+            user.SecurityStamp = Guid.NewGuid().ToString();
+            // An address the admin typed counts as verified, same as at account creation.
+            user.EmailConfirmed = true;
         }
 
         user.FullName = request.FullName;
-        await _userManager.UpdateAsync(user);
+
+        // Single write for every field above: the account can never be left half-updated —
+        // in particular never without a password hash.
+        var update = await _userManager.UpdateAsync(user);
+        if (!update.Succeeded)
+            throw ToBadRequest(update);
+    }
+
+    // UpdateAsync runs Identity's user validator, whose failures are about the email or the
+    // username derived from it; anything else is reported without blaming a specific field.
+    private static BadRequestException ToBadRequest(IdentityResult result)
+    {
+        string[] emailCodes =
+        [
+            nameof(IdentityErrorDescriber.InvalidEmail),
+            nameof(IdentityErrorDescriber.DuplicateEmail),
+            nameof(IdentityErrorDescriber.InvalidUserName),
+            nameof(IdentityErrorDescriber.DuplicateUserName)
+        ];
+
+        return result.Errors.Any(e => emailCodes.Contains(e.Code))
+            ? new BadRequestException(
+                new Dictionary<string, string[]> { ["email"] = ["Geçerli bir e-posta girin."] })
+            : new BadRequestException("Kullanıcı güncellenemedi.");
     }
 
     public async Task SetStatusAsync(string id, UpdateUserStatusRequest request, CancellationToken ct)
