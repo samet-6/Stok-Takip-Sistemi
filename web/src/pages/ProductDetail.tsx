@@ -72,6 +72,9 @@ export default function ProductDetail() {
               {low && <StatusChip variant="warn">Düşük</StatusChip>}
               <span className="text-muted small ms-2">(min {p.minStockLevel})</span>
             </Field>
+            <Field label="Stok Değeri">
+              <span className="tnum">{formatCurrency(p.stockValue)}</span>
+            </Field>
             {p.description && <Field label="Açıklama">{p.description}</Field>}
             <Field label="Oluşturulma">{formatDateTime(p.createdAt)}</Field>
             <Field label="Güncellenme">{formatDateTime(p.updatedAt)}</Field>

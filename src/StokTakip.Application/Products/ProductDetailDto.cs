@@ -13,6 +13,9 @@ public sealed record ProductDetailDto(
     decimal UnitPrice,
     int StockQuantity,
     int MinStockLevel,
+    // UnitPrice × StockQuantity, multiplied by the database so this row agrees to the
+    // kuruş with the totals reported by ProductSummaryDto.
+    decimal StockValue,
     bool IsActive,
     uint RowVersion,
     DateTime CreatedAt,

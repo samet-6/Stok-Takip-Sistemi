@@ -19,12 +19,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(p => p.SKU).IsUnique().HasDatabaseName("UQ_Products_SKU");
 
-        // Optimistic concurrency via PostgreSQL's system column "xmin".
-        // Npgsql 10 removed the UseXminAsConcurrencyToken() shortcut; the documented
-        // replacement is a uint concurrency token mapped to xmin. This is the explicit
-        // longhand of that mechanism (uint + OnAddOrUpdate + concurrency token), which
-        // the Npgsql convention maps to the xmin system column — so no real column is
-        // created in the migration.
+        // Optimistic concurrency via PostgreSQL's system column "xmin": a uint concurrency
+        // token that Postgres itself bumps on every UPDATE. The Npgsql convention maps this
+        // shadow property onto the system column, so the migration creates no real column.
         builder.Property<uint>("xmin")
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()

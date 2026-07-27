@@ -26,14 +26,10 @@ public sealed class ProductService : IProductService
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
-        var q = _db.Products.AsNoTracking();
+        var q = ApplyScope(_db.Products.AsNoTracking(), query.Scope);
 
         if (!query.IncludeInactive)
             q = q.Where(p => p.IsActive);
-        if (query.CategoryId is int categoryId)
-            q = q.Where(p => p.CategoryId == categoryId);
-        if (query.SupplierId is int supplierId)
-            q = q.Where(p => p.SupplierId == supplierId);
         if (query.LowStockOnly)
             q = q.Where(p => p.StockQuantity <= p.MinStockLevel);
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -52,7 +48,11 @@ public sealed class ProductService : IProductService
         var totalCount = await q.CountAsync(ct);
 
         var items = await q
+            // Name is not unique, so it cannot order rows on its own: without a tie-breaker
+            // equal names may land in a different relative order per query, which lets a row
+            // repeat on one page and vanish from another. Id makes the sort total.
             .OrderBy(p => p.Name)
+            .ThenBy(p => p.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(p => new ProductListDto(
@@ -62,6 +62,37 @@ public sealed class ProductService : IProductService
             .ToListAsync(ct);
 
         return new PagedResult<ProductListDto>(items, page, pageSize, totalCount);
+    }
+
+    public async Task<ProductSummaryDto> GetSummaryAsync(ProductScope scope, CancellationToken ct)
+    {
+        // One round trip: COUNT/SUM run inside PostgreSQL over the whole scope, so the
+        // numbers are exact regardless of how many products match, and money is summed as
+        // numeric rather than accumulated in the client's floating-point arithmetic.
+        var summary = await ApplyScope(_db.Products.AsNoTracking(), scope)
+            .GroupBy(_ => 1)
+            .Select(g => new ProductSummaryDto(
+                g.Count(),
+                g.Count(p => p.IsActive),
+                g.Count(p => !p.IsActive),
+                g.Count(p => p.IsActive && p.StockQuantity <= p.MinStockLevel),
+                g.Sum(p => p.IsActive ? p.UnitPrice * p.StockQuantity : 0m)))
+            .FirstOrDefaultAsync(ct);
+
+        // An empty scope produces no group at all.
+        return summary ?? new ProductSummaryDto(0, 0, 0, 0, 0m);
+    }
+
+    // Narrows products to a catalog dimension. Shared by the list and the summary so the
+    // two can never disagree about which products they are describing.
+    private static IQueryable<Product> ApplyScope(IQueryable<Product> q, ProductScope scope)
+    {
+        if (scope.CategoryId is int categoryId)
+            q = q.Where(p => p.CategoryId == categoryId);
+        if (scope.SupplierId is int supplierId)
+            q = q.Where(p => p.SupplierId == supplierId);
+
+        return q;
     }
 
     public async Task<ProductDetailDto?> GetByIdAsync(int id, CancellationToken ct)
@@ -76,6 +107,7 @@ public sealed class ProductService : IProductService
                 x.SupplierId,
                 SupplierName = x.Supplier.Name,
                 x.UnitPrice, x.StockQuantity, x.MinStockLevel, x.IsActive,
+                StockValue = x.UnitPrice * x.StockQuantity,
                 RowVersion = EF.Property<uint>(x, "xmin"),
                 x.CreatedAt, x.UpdatedAt, x.Description,
                 Movements = x.Movements
@@ -105,8 +137,8 @@ public sealed class ProductService : IProductService
 
         return new ProductDetailDto(
             p.Id, p.Name, p.SKU, p.CategoryId, p.CategoryName, p.SupplierId, p.SupplierName,
-            p.UnitPrice, p.StockQuantity, p.MinStockLevel, p.IsActive, p.RowVersion,
-            p.CreatedAt, p.UpdatedAt, p.Description, movements);
+            p.UnitPrice, p.StockQuantity, p.MinStockLevel, p.StockValue, p.IsActive,
+            p.RowVersion, p.CreatedAt, p.UpdatedAt, p.Description, movements);
     }
 
     public async Task<ProductDetailDto> CreateAsync(CreateProductRequest request, string userId, CancellationToken ct)
@@ -169,7 +201,7 @@ public sealed class ProductService : IProductService
         var supplierChanged = product.SupplierId != request.SupplierId;
         var supplier = await GetSupplierOrThrowAsync(request.SupplierId, ct);
         // Active-check only when the supplier actually changes: a product whose supplier
-        // later went inactive can still be edited (veri_modeli refinement).
+        // later went inactive can still be edited.
         if (supplierChanged && !supplier.IsActive)
             throw new BadRequestException("Pasif tedarikçiye ürün atanamaz");
 

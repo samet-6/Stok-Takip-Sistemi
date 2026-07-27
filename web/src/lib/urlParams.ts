@@ -1,7 +1,7 @@
 // Canonical URL query string for pages that keep list state in the URL (single source of
 // truth). Writes only the given keys, in a fixed order, and drops any whose value equals its
 // default — so the address bar stays stable instead of churning param order or leaving
-// redundant defaults (e.g. `page=1`). Shared by Products, TedarikciDetay, KategoriDetay.
+// redundant defaults (e.g. `page=1`).
 export function canonicalParams(
   source: URLSearchParams,
   order: readonly string[],

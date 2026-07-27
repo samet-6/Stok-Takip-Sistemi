@@ -20,6 +20,11 @@ public sealed class ProductsController : ControllerBase
         [FromQuery] ProductQuery query, CancellationToken ct)
         => Ok(await _productService.GetPagedAsync(query, ct));
 
+    [HttpGet("summary")]
+    public async Task<ActionResult<ProductSummaryDto>> GetSummary(
+        [FromQuery] ProductScope scope, CancellationToken ct)
+        => Ok(await _productService.GetSummaryAsync(scope, ct));
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ProductDetailDto>> GetById(int id, CancellationToken ct)
         => Ok(await _productService.GetByIdAsync(id, ct));

@@ -1,7 +1,7 @@
 import { Pagination } from 'react-bootstrap'
 
 // Shared numbered pager. Renders nothing for a single page, so call sites don't need their
-// own `totalPages > 1` guard. Used by Products, Hesabım, CalisanHareketleri, CatalogDetailView.
+// own `totalPages > 1` guard.
 export function Pager({
   page,
   totalPages,

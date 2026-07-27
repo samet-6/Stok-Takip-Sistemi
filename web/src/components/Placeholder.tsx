@@ -1,6 +1,6 @@
 import { Alert } from 'react-bootstrap'
 
-/** Temporary stand-in for pages implemented in later phases (F4b–F4d). */
+/** Temporary stand-in for a page that is not implemented yet. */
 export function Placeholder({ title }: { title: string }) {
   return (
     <>

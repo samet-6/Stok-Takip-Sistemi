@@ -1,5 +1,4 @@
-// Manual mirror of the backend API contract (docs/api_sozlesmesi.md).
-// No codegen — the project is small and the surface is stable.
+// Manual mirror of the backend API contract.
 
 export type MovementType = 'In' | 'Out'
 
@@ -128,6 +127,19 @@ export interface UpdateSupplierRequest {
 }
 
 // --- Products ---
+
+/**
+ * Inventory totals aggregated by the database over a scope (search / category / supplier).
+ * totalStockValue is current unit price × current stock over ACTIVE products only.
+ */
+export interface ProductSummaryDto {
+  totalProducts: number
+  activeCount: number
+  passiveCount: number
+  lowStockCount: number
+  totalStockValue: number
+}
+
 export interface ProductListDto {
   id: number
   name: string
@@ -153,6 +165,8 @@ export interface ProductDetailDto {
   unitPrice: number
   stockQuantity: number
   minStockLevel: number
+  /** unitPrice × stockQuantity, multiplied by the database. */
+  stockValue: number
   isActive: boolean
   rowVersion: number
   createdAt: string

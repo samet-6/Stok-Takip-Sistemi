@@ -7,7 +7,7 @@ import {
   keepPreviousData,
 } from '@tanstack/react-query'
 import { Alert, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap'
-import { getProducts, deleteProduct } from '../api/products'
+import { getProducts, getProductSummary, deleteProduct } from '../api/products'
 import type { ProductQuery } from '../api/products'
 import type { ProductListDto } from '../types/api'
 import { getCategories } from '../api/categories'
@@ -102,20 +102,14 @@ export default function Products() {
     placeholderData: keepPreviousData,
   })
 
-  // Inventory summary tiles — a separate, unfiltered fetch (matches the K2/K3 detail
-  // pattern: pageSize:100 + client-side aggregation). Toplam Ürün uses the DB totalCount
-  // (accurate beyond 100); Düşük/Stok Değeri are over ACTIVE items only (passives aren't
-  // current stock), Pasif counts the archived ones.
+  // Inventory summary tiles: whole-catalogue totals, independent of the filters below.
+  // The counts and the total value are computed by the database, so they stay correct
+  // however many products there are.
   const summaryQuery = useQuery({
-    queryKey: ['products', 'summary'],
-    queryFn: () => getProducts({ includeInactive: true, pageSize: 100 }),
+    queryKey: ['products', 'summary', {}],
+    queryFn: () => getProductSummary({}),
   })
-  const summaryItems = summaryQuery.data?.items ?? []
-  const activeSummary = summaryItems.filter((p) => p.isActive)
-  const totalProducts = summaryQuery.data?.totalCount ?? summaryItems.length
-  const passiveCount = summaryItems.filter((p) => !p.isActive).length
-  const lowStockCount = activeSummary.filter((p) => p.stockQuantity <= p.minStockLevel).length
-  const totalStockValue = activeSummary.reduce((s, p) => s + p.unitPrice * p.stockQuantity, 0)
+  const summary = summaryQuery.data
 
   const qc = useQueryClient()
   const { showSuccess, showError } = useToast()
@@ -150,16 +144,16 @@ export default function Products() {
         }
       />
 
-      {summaryQuery.data && (
+      {summary && (
         <div className="stat-tiles mb-4">
-          <StatTile label="Toplam Ürün" value={totalProducts} />
+          <StatTile label="Toplam Ürün" value={summary.totalProducts} />
           <StatTile
             label="Düşük Stok"
-            value={lowStockCount}
-            valueColor={lowStockCount > 0 ? 'var(--warn)' : undefined}
+            value={summary.lowStockCount}
+            valueColor={summary.lowStockCount > 0 ? 'var(--warn)' : undefined}
           />
-          <StatTile label="Pasif" value={passiveCount} />
-          <StatTile label="Stok Değeri" value={formatCurrency(totalStockValue)} />
+          <StatTile label="Pasif" value={summary.passiveCount} />
+          <StatTile label="Stok Değeri" value={formatCurrency(summary.totalStockValue)} />
         </div>
       )}
 

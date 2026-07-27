@@ -32,7 +32,7 @@ export function formatDate(iso: string): string {
 // Date-range filter boundaries. A <input type="date"> yields a bare local calendar
 // day (yyyy-mm-dd); the backend compares against a timestamptz (UTC) column and stays
 // timezone-agnostic. So we convert the picked *local* day to an offset-aware UTC instant
-// here (the only side that knows the viewer's timezone). See sunum.md (K fazı, tarih filtresi).
+// here (the only side that knows the viewer's timezone).
 
 /** Local calendar day (yyyy-mm-dd) → ISO instant at the START of that day (UTC Z). */
 export function dayStartIso(date: string): string {

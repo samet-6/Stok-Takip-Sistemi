@@ -3,14 +3,19 @@ import type {
   PagedResult,
   ProductListDto,
   ProductDetailDto,
+  ProductSummaryDto,
   CreateProductRequest,
   UpdateProductRequest,
 } from '../types/api'
 
-export interface ProductQuery {
-  search?: string
+/** The catalog dimensions a request is about. */
+export interface ProductScope {
   categoryId?: number
   supplierId?: number
+}
+
+export interface ProductQuery extends ProductScope {
+  search?: string
   lowStockOnly?: boolean
   includeInactive?: boolean
   page?: number
@@ -32,6 +37,19 @@ export async function getProducts(
   const { data } = await apiClient.get<PagedResult<ProductListDto>>('/products', {
     params,
   })
+  return data
+}
+
+/**
+ * Inventory totals for a scope, counted and summed by the database — exact no matter
+ * how many products match, unlike aggregating a fetched page in the browser.
+ */
+export async function getProductSummary(scope: ProductScope): Promise<ProductSummaryDto> {
+  const params = new URLSearchParams()
+  if (scope.categoryId != null) params.set('categoryId', String(scope.categoryId))
+  if (scope.supplierId != null) params.set('supplierId', String(scope.supplierId))
+
+  const { data } = await apiClient.get<ProductSummaryDto>('/products/summary', { params })
   return data
 }
 

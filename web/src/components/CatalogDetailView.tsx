@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Button, Col, Form, Row, Spinner, Tab, Tabs } from 'react-bootstrap'
-import { getProducts } from '../api/products'
+import { getProducts, getProductSummary } from '../api/products'
 import { getStockMovements } from '../api/stockMovements'
 import { ProductMiniTable } from './ProductMiniTable'
 import { MovementsTable } from './MovementsTable'
@@ -18,9 +18,9 @@ const PARAM_ORDER = ['tab', 'type', 'productId', 'from', 'to', 'page'] as const
 const PARAM_DEFAULTS = { tab: 'urun', page: '1' }
 
 // Shared tabbed body for the Tedarikçi/Kategori detail pages: summary tiles + Ürünler tab +
-// Stok Hareketleri tab (filters + "Yapan"). Everything varies only by `scope` (which catalog
-// dimension narrows products/movements) and `otherColumn` (the non-redundant product column).
-// The entity identity card (supplier contact vs category description) stays in the page.
+// Stok Hareketleri tab (filters + "Yapan"). Varies only by `scope` (which catalog dimension
+// narrows products/movements) and `otherColumn` (the non-redundant product column). The
+// entity identity card stays in the calling page.
 export function CatalogDetailView({
   scope,
   otherColumn,
@@ -61,6 +61,14 @@ export function CatalogDetailView({
   })
   const products = productsQuery.data?.items ?? []
 
+  // Tiles come from the database rather than the page of products above, so they stay
+  // correct for a supplier or category holding more products than one page can carry.
+  const summaryQuery = useQuery({
+    queryKey: ['products', 'summary', scope],
+    queryFn: () => getProductSummary(scope),
+  })
+  const summary = summaryQuery.data
+
   const movementsQuery = useQuery({
     queryKey: ['movements', 'catalog-detail', scope, typeFilter, productFilter, fromDate, toDate, page],
     queryFn: () =>
@@ -76,27 +84,23 @@ export function CatalogDetailView({
   })
   const movements = movementsQuery.data?.items ?? []
 
-  // Düşük Stoklu + Stok Değeri over ACTIVE products only (archived ones aren't current
-  // stock/value); Toplam Ürün counts all products (active + passive).
-  const activeProducts = products.filter((p) => p.isActive)
-  const totalValue = activeProducts.reduce((sum, p) => sum + p.unitPrice * p.stockQuantity, 0)
-  const lowStockCount = activeProducts.filter((p) => p.stockQuantity <= p.minStockLevel).length
-
   return (
     <>
       {/* Summary tiles */}
-      <div className="stat-tiles cols-3 mb-4">
-        <StatTile label="Toplam Ürün" value={products.length} />
-        <StatTile
-          label="Düşük Stoklu"
-          value={lowStockCount}
-          valueColor={lowStockCount > 0 ? 'var(--warn)' : undefined}
-        />
-        <StatTile label="Toplam Stok Değeri" value={formatCurrency(totalValue)} />
-      </div>
+      {summary && (
+        <div className="stat-tiles cols-3 mb-4">
+          <StatTile label="Toplam Ürün" value={summary.totalProducts} />
+          <StatTile
+            label="Düşük Stoklu"
+            value={summary.lowStockCount}
+            valueColor={summary.lowStockCount > 0 ? 'var(--warn)' : undefined}
+          />
+          <StatTile label="Toplam Stok Değeri" value={formatCurrency(summary.totalStockValue)} />
+        </div>
+      )}
 
       <Tabs activeKey={tab} onSelect={(k) => selectTab(k ?? 'urun')} className="mb-3">
-        <Tab eventKey="urun" title={`Ürünler (${products.length})`}>
+        <Tab eventKey="urun" title={`Ürünler (${summary?.totalProducts ?? products.length})`}>
           {productsQuery.isLoading ? (
             <div className="text-center py-5">
               <Spinner animation="border" />
