@@ -28,7 +28,7 @@ public sealed class StockMovementsController : ControllerBase
     }
 
     // Stock movement is operational data — any authenticated user (Admin + Çalışan) may add it.
-    // Class-level [Authorize] applies; no role restriction here (revizyon R2).
+    // Class-level [Authorize] applies; no role restriction here.
     [HttpPost]
     public async Task<ActionResult<StockMovementResponse>> Create(
         CreateStockMovementRequest request, CancellationToken ct)

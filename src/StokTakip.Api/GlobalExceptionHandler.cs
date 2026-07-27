@@ -7,7 +7,6 @@ using StokTakip.Application.Common.Exceptions;
 namespace StokTakip.Api;
 
 // Single funnel: Application exceptions → RFC 7807 ProblemDetails.
-// F3'te tüm servisler aynısını kullanacak.
 public sealed class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly IProblemDetailsService _problemDetailsService;

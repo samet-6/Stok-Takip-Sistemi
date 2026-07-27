@@ -1,13 +1,13 @@
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Form, Spinner } from 'react-bootstrap'
-import { getProducts } from '../api/products'
 import { createStockMovement } from '../api/stockMovements'
 import type { CreateStockMovementRequest } from '../types/api'
 import { useToast } from '../components/toastContext'
 import { PageHeader } from '../components/PageHeader'
+import { ProductPicker } from '../components/ProductPicker'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
 const schema = z.object({
@@ -26,14 +26,9 @@ export default function StockMovement() {
   const qc = useQueryClient()
   const { showSuccess, showError } = useToast()
 
-  // All products (passive included) — passive stock can still be drawn down.
-  const productsQuery = useQuery({
-    queryKey: ['products', 'all-for-movement'],
-    queryFn: () => getProducts({ includeInactive: true, pageSize: 1000 }),
-  })
-
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -57,8 +52,22 @@ export default function StockMovement() {
       // the same product is the common case; only the per-entry fields are cleared.
       reset({ ...DEFAULTS, productId: vars.productId, type: vars.type })
     },
-    onError: (err) => {
-      showError(problemMessage(parseProblemDetails(err)))
+    onError: (err, vars) => {
+      const problem = parseProblemDetails(err)
+
+      if (problem.code === 'concurrency_conflict') {
+        // Another request changed this product between our read and our write, so nothing
+        // was saved. Refresh the product first — that updates the stock shown next to the
+        // selection — then tell the user to check it and re-send.
+        qc.invalidateQueries({ queryKey: ['products'] })
+        qc.invalidateQueries({ queryKey: ['product', Number(vars.productId)] })
+        showError(
+          'Bu ürünün stoğu siz işlem yaparken değişti. Güncel stok yukarıda yenilendi — kontrol edip tekrar gönderin.',
+        )
+        return
+      }
+
+      showError(problemMessage(problem))
     },
   })
 
@@ -66,84 +75,81 @@ export default function StockMovement() {
     <div style={{ maxWidth: 640 }}>
       <PageHeader title="Stok Hareketi" subtitle="Ürün girişi veya çıkışı ekleyin." />
 
-      {productsQuery.isLoading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" />
-        </div>
-      ) : (
-        <Form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate>
-          <Form.Group className="mb-3" controlId="movement-product">
-            <Form.Label>Ürün</Form.Label>
-            <Form.Select {...register('productId')} isInvalid={!!errors.productId}>
-              <option value="">Seçiniz…</option>
-              {productsQuery.data!.items.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.sku}){p.isActive ? '' : ' (Pasif)'}
-                </option>
-              ))}
-            </Form.Select>
-            <Form.Control.Feedback type="invalid">
-              {errors.productId?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label className="d-block">Tip</Form.Label>
-            <Form.Check
-              inline
-              type="radio"
-              id="movement-type-in"
-              label="Giriş"
-              value="In"
-              {...register('type')}
-            />
-            <Form.Check
-              inline
-              type="radio"
-              id="movement-type-out"
-              label="Çıkış"
-              value="Out"
-              {...register('type')}
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-3" controlId="movement-quantity">
-            <Form.Label>Miktar</Form.Label>
-            <Form.Control
-              type="number"
-              {...register('quantity')}
-              isInvalid={!!errors.quantity}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.quantity?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-
-          <Form.Group className="mb-4" controlId="movement-note">
-            <Form.Label>Not (opsiyonel)</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              {...register('note')}
-              isInvalid={!!errors.note}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.note?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-
-          <Button type="submit" variant="primary" disabled={mutation.isPending}>
-            {mutation.isPending ? (
-              <>
-                <Spinner as="span" size="sm" animation="border" className="me-2" />
-                Kaydediliyor…
-              </>
-            ) : (
-              'Hareket Ekle'
+      <Form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate>
+        <Form.Group className="mb-3">
+          <Form.Label>Ürün</Form.Label>
+          <Controller
+            name="productId"
+            control={control}
+            render={({ field }) => (
+              <ProductPicker
+                value={field.value ? Number(field.value) : null}
+                onChange={(id) => field.onChange(id === null ? '' : String(id))}
+                isInvalid={!!errors.productId}
+              />
             )}
-          </Button>
-        </Form>
-      )}
+          />
+          {errors.productId && (
+            <div className="text-danger small mt-1">{errors.productId.message}</div>
+          )}
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Label className="d-block">Tip</Form.Label>
+          <Form.Check
+            inline
+            type="radio"
+            id="movement-type-in"
+            label="Giriş"
+            value="In"
+            {...register('type')}
+          />
+          <Form.Check
+            inline
+            type="radio"
+            id="movement-type-out"
+            label="Çıkış"
+            value="Out"
+            {...register('type')}
+          />
+        </Form.Group>
+
+        <Form.Group className="mb-3" controlId="movement-quantity">
+          <Form.Label>Miktar</Form.Label>
+          <Form.Control
+            type="number"
+            {...register('quantity')}
+            isInvalid={!!errors.quantity}
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.quantity?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group className="mb-4" controlId="movement-note">
+          <Form.Label>Not (opsiyonel)</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            {...register('note')}
+            isInvalid={!!errors.note}
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.note?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        <Button type="submit" variant="primary" disabled={mutation.isPending}>
+          {mutation.isPending ? (
+            <>
+              <Spinner as="span" size="sm" animation="border" className="me-2" />
+              Kaydediliyor…
+            </>
+          ) : (
+            'Hareket Ekle'
+          )}
+        </Button>
+      </Form>
     </div>
   )
 }

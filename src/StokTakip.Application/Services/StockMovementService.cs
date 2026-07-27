@@ -41,7 +41,7 @@ public sealed class StockMovementService : IStockMovementService
         // CreatedAt range, inclusive on both ends. CreatedAt is a timestamptz (UTC) column;
         // the backend only compares instants and stays timezone-agnostic. The frontend, which
         // knows the viewer's timezone, sends offset-aware ISO boundaries (e.g. the local day
-        // start as ...+03:00), so the comparison below runs UTC-vs-UTC. See sunum.md (tarih filtresi).
+        // start as ...+03:00), so the comparison below runs UTC-vs-UTC.
         if (query.From is DateTime from)
         {
             var fromUtc = ToUtc(from);
@@ -101,8 +101,10 @@ public sealed class StockMovementService : IStockMovementService
         _db.StockMovements.Add(movement);
 
         // Movement insert + StockQuantity update in a SINGLE SaveChangesAsync — one implicit
-        // transaction, atomic. A concurrent race trips the product's xmin token → 409, and the
-        // client retries; no explicit BeginTransaction needed.
+        // transaction, so either both land or neither does; no explicit BeginTransaction needed.
+        // If another request updates this product first, the stale xmin token makes the UPDATE
+        // match no rows and the caller gets a 409. Re-sending is left to the user: movements
+        // carry no idempotency key, so an automatic retry could double-post one.
         product.StockQuantity += request.Type == StockMovementType.In
             ? request.Quantity
             : -request.Quantity;
