@@ -6,11 +6,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.OpenApi;
 using StokTakip.Api;
+using StokTakip.Api.Realtime;
 using StokTakip.Application.Auth;
 using StokTakip.Application.Categories;
 using StokTakip.Application.Common;
+using StokTakip.Application.Notifications;
 using StokTakip.Application.Products;
 using StokTakip.Application.Services;
 using StokTakip.Application.StockMovements;
@@ -52,8 +55,17 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStockMovementService, StockMovementService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 builder.Services.AddScoped<IUserService, UserService>();
+
+// Realtime. CloseOnAuthenticationExpiration stays OFF (the default) on purpose: the hub
+// ticket only authenticates the handshake and lives 30 seconds, so turning it on would
+// tear every connection down half a minute after it opened. Revoked sessions are pushed
+// explicitly instead of being inferred from ticket expiry.
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, HubUserIdProvider>();
+builder.Services.AddSingleton<IRealtimeNotifier, SignalRNotifier>();
 
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Jwt configuration section is missing.");
@@ -78,6 +90,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.Events = new JwtBearerEvents
         {
+            // The browser's WebSocket API cannot set an Authorization header on the
+            // handshake, so the hub identity must travel in the query string. Accepted
+            // only under /hubs — and OnTokenValidated makes sure the only thing that
+            // works there is a short-lived ticket, never the session token.
+            OnMessageReceived = context =>
+            {
+                if (context.HttpContext.Request.Path.StartsWithSegments(HubRoutes.Prefix))
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    if (!string.IsNullOrEmpty(accessToken))
+                        context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
+
             // Per-request session validation: the token's SecurityStamp must
             // match the DB and the user must still be active — else the token is rejected
             // (401 via OnChallenge). This is what makes admin password reset / email change /
@@ -85,6 +113,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnTokenValidated = async context =>
             {
                 var principal = context.Principal!;
+
+                // Two-way scope fence: a hub ticket is only good for /hubs, and /hubs
+                // accepts nothing else. The second half is what keeps the 8-hour session
+                // token out of query strings — and therefore out of access logs — as a
+                // server-enforced invariant rather than client-side good manners.
+                // Checked before the DB round trip so a misrouted token costs no query.
+                var isHubPath = context.HttpContext.Request.Path.StartsWithSegments(HubRoutes.Prefix);
+                var isHubTicket =
+                    principal.FindFirstValue(TokenService.ScopeClaimType) == TokenService.HubScope;
+
+                if (isHubPath != isHubTicket)
+                {
+                    context.Fail("Bilet bu yol için geçerli değil.");
+                    return;
+                }
+
                 var userId = principal.FindFirstValue("sub");
                 var tokenStamp = principal.FindFirstValue(TokenService.SecurityStampClaimType);
 
@@ -174,5 +218,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<StokHub>(HubRoutes.Stok);
 
 app.Run();

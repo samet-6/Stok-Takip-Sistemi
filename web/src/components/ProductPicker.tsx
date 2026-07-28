@@ -35,8 +35,12 @@ export function ProductPicker({
   })
 
   // Only searches once something has been typed: an empty box means no results, not the
-  // whole catalogue. Passive products are searchable too — leftover stock can still be
-  // drawn down.
+  // whole catalogue.
+  //
+  // Passive products stay searchable even though the backend rejects movements on them.
+  // Hiding them reads as "no such product" and leaves the user stuck;
+  // showing them with the "(Pasif)" marker, then failing with "activate it first", tells
+  // the user what is actually wrong and what to do about it.
   const hasTerm = debouncedTerm.trim().length > 0
   const resultsQuery = useQuery({
     queryKey: ['products', 'picker', debouncedTerm],
@@ -97,7 +101,10 @@ export function ProductPicker({
         <div className="text-muted small mt-2">
           Ürünü bulmak için ad veya SKU yazmaya başlayın.
         </div>
-      ) : resultsQuery.isFetching ? (
+      ) : /* isLoading, not isFetching: a new search term is a new query key and still shows
+             the spinner, but a realtime background refetch must not blank out results the
+             user is reading. */
+      resultsQuery.isLoading ? (
         <div className="text-center py-3">
           <Spinner animation="border" size="sm" />
         </div>

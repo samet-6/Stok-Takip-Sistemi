@@ -48,7 +48,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         var problemDetails = new ProblemDetails { Status = status, Title = title };
         problemDetails.Extensions["code"] = code;
         if (exception is DbUpdateConcurrencyException)
-            problemDetails.Detail = "Kayıt başkası tarafından değiştirildi, sayfayı yenileyin.";
+            // States what happened, never what to do about it: the right recovery differs per
+            // screen (re-send on the movement form, "Formu yenile" on the product form), and
+            // only the screen knows which. Callers branch on the `code`, not on this text.
+            problemDetails.Detail = "Bu kayıt siz işlem yaparken başkası tarafından değiştirildi.";
         if (exception is BadRequestException { FieldErrors: { Count: > 0 } } badRequest)
             problemDetails.Extensions["errors"] = badRequest.FieldErrors;
 

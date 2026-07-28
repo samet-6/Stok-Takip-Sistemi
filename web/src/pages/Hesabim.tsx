@@ -53,7 +53,7 @@ export default function Hesabim() {
   // Own movements only. The server forces a Çalışan to their own id; passing the
   // caller's own id also constrains an Admin to their own here.
   const movementsQuery = useQuery({
-    queryKey: ['my-movements', user?.id, page],
+    queryKey: ['movements', 'mine', user?.id, page],
     queryFn: () => getStockMovements({ userId: user!.id, page, pageSize: 10 }),
     enabled: !!user,
   })

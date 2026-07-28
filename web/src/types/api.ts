@@ -33,6 +33,13 @@ export interface ChangePasswordResponse {
   expiresAt: string // ISO 8601
 }
 
+// Short-lived (30s) hub-only ticket. Not a session token — it is what goes in the
+// WebSocket query string, because the session token must never end up in a URL.
+export interface HubTicketResponse {
+  token: string
+  expiresAt: string // ISO 8601
+}
+
 // --- Users (Çalışanlar) — admin-managed employee accounts ---
 export interface UserListDto {
   id: string
@@ -219,4 +226,33 @@ export interface CreateStockMovementRequest {
 export interface StockMovementResponse {
   movement: StockMovementDto
   newStockQuantity: number
+}
+
+// --- Bildirimler (yalnız admin) ---
+
+export type NotificationType = 'LowStock' | 'OutOfStock' | 'RejectedOutMovement'
+
+export interface NotificationDto {
+  id: number
+  type: NotificationType
+  productId: number
+  productName: string
+  /** Olay anındaki stok; redde mevcut (bulunabilen) stok. */
+  quantity: number
+  /** Yalnız RejectedOutMovement: istenen çıkış miktarı. */
+  requestedQuantity: number | null
+  createdAt: string
+  createdByUserId: string
+  createdByFullName: string
+  /** null = okunmamış. */
+  readAt: string | null
+}
+
+export interface NotificationListResponse {
+  items: NotificationDto[]
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  unreadCount: number
 }

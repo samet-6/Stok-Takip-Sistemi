@@ -14,11 +14,14 @@ public sealed class ProductService : IProductService
 
     private readonly IAppDbContext _db;
     private readonly IUserLookupService _userLookup;
+    private readonly IRealtimeNotifier _realtime;
 
-    public ProductService(IAppDbContext db, IUserLookupService userLookup)
+    public ProductService(
+        IAppDbContext db, IUserLookupService userLookup, IRealtimeNotifier realtime)
     {
         _db = db;
         _userLookup = userLookup;
+        _realtime = realtime;
     }
 
     public async Task<PagedResult<ProductListDto>> GetPagedAsync(ProductQuery query, CancellationToken ct)
@@ -184,6 +187,10 @@ public sealed class ProductService : IProductService
 
         await _db.SaveChangesAsync(ct);
 
+        // Post-commit (see IRealtimeNotifier): a new product changes the list and the summary
+        // tiles, and an initial stock movement changes them again.
+        _realtime.NotifyProductChanged(product.Id);
+
         return (await GetByIdAsync(product.Id, ct))!;
     }
 
@@ -219,7 +226,14 @@ public sealed class ProductService : IProductService
         // raising DbUpdateConcurrencyException (→ 409).
         _db.Entry(product).Property("xmin").OriginalValue = request.RowVersion;
 
-        await _db.SaveChangesAsync(ct);
+        var written = await _db.SaveChangesAsync(ct);
+
+        // The signal follows the row, not the request. Two cases produce no signal, both right:
+        // a stale RowVersion throws above (409 — a rejected edit changed nothing), and a PUT
+        // that re-sends identical values makes EF's change tracker emit no UPDATE at all.
+        // Broadcasting on the latter would have every open screen refetch identical data.
+        if (written > 0)
+            _realtime.NotifyProductChanged(id);
 
         return (await GetByIdAsync(id, ct))!;
     }
@@ -235,12 +249,15 @@ public sealed class ProductService : IProductService
         {
             _db.Products.Remove(product);
             await _db.SaveChangesAsync(ct);
+            _realtime.NotifyProductChanged(id); // a row that vanished is a change like any other
             return null; // hard-deleted
         }
 
         // A product with movements is never hard-deleted → soft delete (append-only ledger).
         product.IsActive = false;
-        await _db.SaveChangesAsync(ct);
+        // Same rule as UpdateAsync: deleting an already-inactive product writes nothing.
+        if (await _db.SaveChangesAsync(ct) > 0)
+            _realtime.NotifyProductChanged(id);
 
         return await _db.Products
             .AsNoTracking()

@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { Button, Container, Nav, Navbar } from 'react-bootstrap'
 import { useAuthStore, useIsAdmin } from '../stores/authStore'
+import { NotificationBell } from './NotificationBell'
 
 export function Layout() {
   const user = useAuthStore((s) => s.user)
@@ -42,6 +43,9 @@ export function Layout() {
               )}
             </Nav>
             <Nav className="align-items-md-center">
+              {/* Admin only — the endpoints behind it answer 403 to a Çalışan, so rendering it
+                  for them would be a button that can only fail. */}
+              {isAdmin && <NotificationBell />}
               <Nav.Link as={NavLink} to="/hesabim" className="me-3 text-light">
                 {user?.fullName}
               </Nav.Link>

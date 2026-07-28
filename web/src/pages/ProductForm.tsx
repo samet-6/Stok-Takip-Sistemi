@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,7 +8,11 @@ import { Alert, Button, Col, Form, Row, Spinner } from 'react-bootstrap'
 import { getProduct, createProduct, updateProduct } from '../api/products'
 import { getCategories } from '../api/categories'
 import { getSuppliers } from '../api/suppliers'
-import type { CreateProductRequest, UpdateProductRequest } from '../types/api'
+import type {
+  CreateProductRequest,
+  ProductDetailDto,
+  UpdateProductRequest,
+} from '../types/api'
 import { useToast } from '../components/toastContext'
 import { PageHeader } from '../components/PageHeader'
 import { applyServerFieldErrors } from '../lib/formErrors'
@@ -57,6 +61,37 @@ const FORM_FIELDS = [
   'initialStock',
 ] as const
 
+/**
+ * The single definition of "what this form holds". Used both to populate the form and to
+ * compare an incoming record against the one being edited, so the two can never drift:
+ * a field added to the form joins the comparison in the same edit.
+ */
+function toFormValues(p: ProductDetailDto): ProductFormValues {
+  return {
+    name: p.name,
+    sku: p.sku,
+    description: p.description ?? '',
+    categoryId: String(p.categoryId),
+    supplierId: String(p.supplierId),
+    unitPrice: String(p.unitPrice),
+    minStockLevel: String(p.minStockLevel),
+    initialStock: '',
+    isActive: p.isActive,
+  }
+}
+
+/** Every value is a string or a boolean, so a shallow comparison is the whole story. */
+function sameFormValues(a: ProductFormValues, b: ProductFormValues): boolean {
+  return (Object.keys(a) as (keyof ProductFormValues)[]).every((k) => a[k] === b[k])
+}
+
+/**
+ * What the form was populated from, and the row version this edit is based on. Carries the
+ * product id too: the route can swap :id without remounting, and a baseline belonging to the
+ * previous product would send its rowVersion to the new one.
+ */
+type Baseline = { productId: number; values: ProductFormValues; rowVersion: number }
+
 export default function ProductForm() {
   const { id } = useParams()
   const isEdit = id !== undefined
@@ -84,23 +119,51 @@ export default function ProductForm() {
     defaultValues: CREATE_DEFAULTS,
   })
 
-  // Populate the form from the loaded product (edit mode).
+  const [baseline, setBaseline] = useState<Baseline | null>(null)
+  const [conflict, setConflict] = useState(false)
+
+  // Populate once, then never again on the user. The product query is refetched by realtime
+  // signals and on window focus, so a reset() on every data arrival would wipe whatever is
+  // half-typed — which is exactly what it used to do.
   useEffect(() => {
-    if (productQuery.data) {
-      const p = productQuery.data
-      reset({
-        name: p.name,
-        sku: p.sku,
-        description: p.description ?? '',
-        categoryId: String(p.categoryId),
-        supplierId: String(p.supplierId),
-        unitPrice: String(p.unitPrice),
-        minStockLevel: String(p.minStockLevel),
-        initialStock: '',
-        isActive: p.isActive,
-      })
+    const p = productQuery.data
+    if (!p) return
+
+    const incoming = toFormValues(p)
+
+    if (baseline === null || baseline.productId !== p.id) {
+      reset(incoming)
+      setBaseline({ productId: p.id, values: incoming, rowVersion: p.rowVersion })
+      setConflict(false)
+      return
     }
-  }, [productQuery.data, reset])
+
+    if (p.rowVersion === baseline.rowVersion) return
+
+    // The row moved, but none of the fields this form writes did — so the only thing that
+    // changed is stock, i.e. somebody entered a movement. Disjoint write sets: there is no
+    // conflict to report, and saving must not be rejected for one. Adopt the fresh version
+    // silently. (rowVersion is the whole row's xmin, which is why this case exists at all.)
+    if (sameFormValues(incoming, baseline.values)) {
+      setBaseline({ ...baseline, rowVersion: p.rowVersion })
+      return
+    }
+
+    // A field the form writes changed underneath the user: a real conflict. Warn and stop
+    // there — the typed values stay, and the decision is theirs.
+    setConflict(true)
+  }, [productQuery.data, baseline, reset])
+
+  // Explicit, never automatic: takes the record the background refetch already put in the
+  // cache (so no network round trip) and overwrites the form with it.
+  const refreshFromServer = () => {
+    const p = productQuery.data
+    if (!p) return
+    const incoming = toFormValues(p)
+    reset(incoming)
+    setBaseline({ productId: p.id, values: incoming, rowVersion: p.rowVersion })
+    setConflict(false)
+  }
 
   const saveMutation = useMutation({
     mutationFn: (v: ProductFormValues) => {
@@ -114,7 +177,10 @@ export default function ProductForm() {
           unitPrice: Number(v.unitPrice),
           minStockLevel: Number(v.minStockLevel),
           isActive: v.isActive,
-          rowVersion: productQuery.data!.rowVersion,
+          // The version the form was populated from — never the freshest one. Sending
+          // whatever the last background refetch happened to bring back would overwrite a
+          // change the user never saw, silently defeating the server's 409.
+          rowVersion: baseline!.rowVersion,
         }
         return updateProduct(productId!, body)
       }
@@ -143,8 +209,16 @@ export default function ProductForm() {
         return
       }
       if (problem.code === 'concurrency_conflict') {
-        // Stale rowVersion: pull the fresh record so a retry can succeed.
+        // Stale rowVersion: pull the fresh record so a retry can succeed. The refetch also
+        // raises the warning banner, which is where the recovery action lives.
         productQuery.refetch()
+        // Screen-specific wording on purpose: the server only reports *what* happened, and the
+        // same 409 means a different next step on the stock-movement screen. Pointing at the
+        // banner beats the generic advice, which would send the user to a page reload.
+        showError(
+          'Bu ürün siz düzenlerken değiştirildi. Yukarıdaki "Formu yenile" ile güncel değerleri alabilirsiniz.',
+        )
+        return
       }
       showError(problemMessage(problem))
     },
@@ -172,6 +246,21 @@ export default function ProductForm() {
   return (
     <div style={{ maxWidth: 640 }}>
       <PageHeader title={isEdit ? 'Ürün Düzenle' : 'Yeni Ürün'} />
+
+      {conflict && (
+        <Alert variant="warning">
+          <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <span>
+              Bu ürün siz düzenlerken başka bir yerden değiştirildi. Yazdıklarınız duruyor,
+              ama bu hâliyle kaydedilemez. <strong>Formu yenile</strong> güncel değerleri
+              getirir ve yazdıklarınızın yerine geçer.
+            </span>
+            <Button variant="outline-dark" size="sm" onClick={refreshFromServer}>
+              Formu yenile
+            </Button>
+          </div>
+        </Alert>
+      )}
 
       <Form onSubmit={handleSubmit((v) => saveMutation.mutate(v))} noValidate>
         <Form.Group className="mb-3" controlId="product-name">
