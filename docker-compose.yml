@@ -1,4 +1,4 @@
-# StokTakip — tam yığın orkestrasyonu (F5b).
+# StokTakip — tam yığın orkestrasyonu.
 # Tüm parola/anahtar değerleri DEMO'dur; gerçek ortamda Docker secret / env_file
 # ile yönetilir, repoya girmez. Bkz. README dağıtım notları.
 services:
