@@ -26,6 +26,17 @@ public static class AuthenticatedClient
         return client;
     }
 
+    /// <summary>
+    /// Attaches a token the caller already has. Used by the token-validation tests, which need
+    /// to present tokens no login would ever hand out — expired, mis-signed, claim-less.
+    /// </summary>
+    public static HttpClient WithToken(this StokTakipFactory factory, string token)
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
     /// <summary>Logs in and returns the raw token. Throws with the status code when login fails.</summary>
     public static async Task<string> LoginAsync(
         HttpClient client, string email, string password, CancellationToken ct = default)

@@ -38,6 +38,12 @@ public sealed class TestDatabaseFixture : IAsyncLifetime
         await using var db = CreateContext();
         await db.Database.EnsureDeletedAsync();
         await db.Database.MigrateAsync();
+
+        // Booting the host here is what seeds the database, because seeding lives in Program.cs.
+        // Left until a test happened to touch the factory, a class that only reads seeded data
+        // would pass or fail depending on which class ran first — and running a single test from
+        // the IDE would find an empty database.
+        _ = Factory.Services;
     }
 
     /// <summary>

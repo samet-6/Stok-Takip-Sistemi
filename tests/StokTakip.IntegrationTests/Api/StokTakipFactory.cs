@@ -20,6 +20,15 @@ public sealed class StokTakipFactory : WebApplicationFactory<Program>
     public const string UserEmail = "user@stok.local";
     public const string UserPassword = "TestUser!2026";
 
+    /// <summary>
+    /// The signing parameters the test host runs with. Exposed so token-validation tests can
+    /// build tokens the application would otherwise accept — an expired one, one missing a
+    /// claim, one signed with a foreign key. Everything else keeps logging in for real.
+    /// </summary>
+    public const string JwtIssuer = "StokTakip.Tests";
+    public const string JwtAudience = "StokTakip.Tests";
+    public const string JwtKey = "test-only-signing-key-not-used-anywhere-else-0123456789";
+
     public StokTakipFactory(string connectionString)
     {
         // Configuration is injected through environment variables rather than
@@ -34,9 +43,9 @@ public sealed class StokTakipFactory : WebApplicationFactory<Program>
 
         // The application signs its own tokens with this key, so the tests never forge one — they
         // log in through the real endpoint like any client.
-        SetVariable("Jwt__Issuer", "StokTakip.Tests");
-        SetVariable("Jwt__Audience", "StokTakip.Tests");
-        SetVariable("Jwt__Key", "test-only-signing-key-not-used-anywhere-else-0123456789");
+        SetVariable("Jwt__Issuer", JwtIssuer);
+        SetVariable("Jwt__Audience", JwtAudience);
+        SetVariable("Jwt__Key", JwtKey);
         SetVariable("Jwt__ExpiryHours", "8");
 
         SetVariable("Seed__AdminPassword", AdminPassword);
