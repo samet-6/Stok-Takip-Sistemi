@@ -118,7 +118,7 @@ hazır gelir.
 
 ## Testler
 
-Yukarıdaki kurulum yapıldıysa PostgreSQL zaten `5433`'te çalışıyor. Ek olarak
+Yukarıdaki kurulum yapıldıysa PostgreSQL zaten `5433`'te çalışır. Ek olarak
 **.NET 10 SDK** gerekir. Depo kökünde:
 
 ```bash
