@@ -143,24 +143,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 context.HandleResponse();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.ContentType = "application/problem+json";
                 var problem = new ProblemDetails
                 {
                     Status = StatusCodes.Status401Unauthorized,
                     Title = "Kimlik doğrulama gerekli."
                 };
-                await context.Response.WriteAsJsonAsync(problem);
+                // The content type has to travel with the write: WriteAsJsonAsync sets its own
+                // ("application/json") and would overwrite anything assigned to the response
+                // beforehand. Every other error in the API is RFC 7807, these two included.
+                await context.Response.WriteAsJsonAsync(
+                    problem, options: null, contentType: "application/problem+json");
             },
             OnForbidden = async context =>
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                context.Response.ContentType = "application/problem+json";
                 var problem = new ProblemDetails
                 {
                     Status = StatusCodes.Status403Forbidden,
                     Title = "Bu işlem için yetkiniz yok."
                 };
-                await context.Response.WriteAsJsonAsync(problem);
+                await context.Response.WriteAsJsonAsync(
+                    problem, options: null, contentType: "application/problem+json");
             }
         };
     });
