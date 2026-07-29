@@ -59,16 +59,16 @@ Yalın Onion mimarisi — bağımlılıklar yalnızca içe doğru akar:
 
 ```mermaid
 graph TD
-    Api[Api<br/>controllers, DI, middleware] --> App[Application<br/>iş kuralları, servisler, DTO'lar]
+    Api[Api<br/>controllers, DI, middleware, SignalR hub] --> App[Application<br/>iş kuralları, servisler, DTO'lar, arayüzler]
     Infra[Infrastructure<br/>EF, Identity, JWT, seed] --> App
     App --> Domain[Domain<br/>entity'ler, enum]
     Api --> Infra
 ```
 
 - **Domain** — framework bağımsız POCO entity'ler ve enum.
-- **Application** — iş kuralları, servisler, DTO'lar; `IAppDbContext` soyutlaması üzerinden çalışır, veritabanı sağlayıcısını tanımaz.
+- **Application** — iş kuralları, servisler, DTO'lar ve dışa bakan arayüzler; veritabanına `IAppDbContext`, gerçek zamanlı sinyallere `IRealtimeNotifier` üzerinden erişir — ne veritabanı sağlayıcısını ne de taşıma katmanını tanır.
 - **Infrastructure** — EF Core DbContext, migration'lar, seed, Identity ve JWT üretimi.
-- **Api** — ince controller'lar, bağımlılık kaydı, middleware, SignalR hub'ı. Application yalnız framework bağımsız bir bildirim arayüzü tanır; SignalR'a referans vermez.
+- **Api** — ince controller'lar, bağımlılık kaydı, middleware, SignalR hub'ı (`IRealtimeNotifier`'ın tek uygulaması).
 
 ## Kurulum
 
