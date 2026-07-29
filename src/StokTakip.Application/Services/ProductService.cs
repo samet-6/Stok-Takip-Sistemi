@@ -72,7 +72,13 @@ public sealed class ProductService : IProductService
         // One round trip: COUNT/SUM run inside PostgreSQL over the whole scope, so the
         // numbers are exact regardless of how many products match, and money is summed as
         // numeric rather than accumulated in the client's floating-point arithmetic.
-        var summary = await ApplyScope(_db.Products.AsNoTracking(), scope)
+        // Materialised as a list rather than with FirstOrDefault, and the reason is only about
+        // the log: grouping on a constant collapses the scope to at most one row, so "which row"
+        // has a single possible answer — but EF's check for that warning is syntactic (is there
+        // an OrderBy or a filter next to the First?), not cardinality-aware, so it flagged every
+        // summary call as potentially unpredictable. Taking the list keeps the same single-row
+        // aggregate without a row-limiting operator to warn about.
+        var rows = await ApplyScope(_db.Products.AsNoTracking(), scope)
             .GroupBy(_ => 1)
             .Select(g => new ProductSummaryDto(
                 g.Count(),
@@ -80,10 +86,10 @@ public sealed class ProductService : IProductService
                 g.Count(p => !p.IsActive),
                 g.Count(p => p.IsActive && p.StockQuantity <= p.MinStockLevel),
                 g.Sum(p => p.IsActive ? p.UnitPrice * p.StockQuantity : 0m)))
-            .FirstOrDefaultAsync(ct);
+            .ToListAsync(ct);
 
         // An empty scope produces no group at all.
-        return summary ?? new ProductSummaryDto(0, 0, 0, 0, 0m);
+        return rows.Count == 0 ? new ProductSummaryDto(0, 0, 0, 0, 0m) : rows[0];
     }
 
     // Narrows products to a catalog dimension. Shared by the list and the summary so the
