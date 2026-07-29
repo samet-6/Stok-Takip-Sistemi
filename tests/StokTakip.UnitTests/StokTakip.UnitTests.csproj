@@ -21,6 +21,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\StokTakip.Application\StokTakip.Application.csproj" />
     <ProjectReference Include="..\..\src\StokTakip.Domain\StokTakip.Domain.csproj" />
+    <!-- Metadata only: LayerPurityTests reads Infrastructure's referenced-assembly list to prove
+         it carries no SignalR dependency, and an assembly has to be loaded to be read. Nothing
+         here may touch a DbContext — this project stays database-free. -->
+    <ProjectReference Include="..\..\src\StokTakip.Infrastructure\StokTakip.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

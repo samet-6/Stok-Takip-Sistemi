@@ -44,6 +44,28 @@ public sealed class LayerPurityTests
     }
 
     /// <summary>
+    /// SignalR lives in the Api layer and nowhere else. Application only knows the framework-free
+    /// IRealtimeNotifier; Infrastructure does not know about signalling at all. The temptation this
+    /// guards against is concrete — the obvious place to reach for IHubContext is inside the service
+    /// that just changed a row, and doing so would drag a transport into the business layer and put
+    /// an awaitable hub call inside a transaction.
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(PagedResult<>))]
+    [InlineData(typeof(StokTakip.Infrastructure.Data.AppDbContext))]
+    public void Application_ve_Infrastructure_SignalR_a_referans_vermiyor(Type layerAnchor)
+    {
+        var signalR = ReferencesOf(layerAnchor.Assembly)
+            .Where(name => name.Contains("SignalR", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.True(
+            signalR.Length == 0,
+            $"{layerAnchor.Assembly.GetName().Name} SignalR'a referans vermemeli, bulundu: "
+            + string.Join(", ", signalR));
+    }
+
+    /// <summary>
     /// Referenced assemblies are what the compiler wrote into the metadata, i.e. what the code
     /// actually uses. An unused PackageReference would not show up here — and would also be
     /// harmless: the dependency starts to matter the moment a type from it is touched.
