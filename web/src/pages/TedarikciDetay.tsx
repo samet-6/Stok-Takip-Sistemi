@@ -51,7 +51,7 @@ export default function TedarikciDetay() {
           <div className="d-flex justify-content-between align-items-start mb-3">
             <div className="d-flex align-items-center gap-2">
               <h2 className="mb-0">{supplier.name}</h2>
-              <StatusChip variant={supplier.isActive ? 'neutral' : 'crit'}>
+              <StatusChip variant={supplier.isActive ? 'ok' : 'crit'}>
                 {supplier.isActive ? 'Aktif' : 'Pasif'}
               </StatusChip>
             </div>

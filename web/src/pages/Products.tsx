@@ -269,7 +269,7 @@ export default function Products() {
                           )}
                         </td>
                         <td>
-                          <StatusChip variant={p.isActive ? 'neutral' : 'crit'}>
+                          <StatusChip variant={p.isActive ? 'ok' : 'crit'}>
                             {p.isActive ? 'Aktif' : 'Pasif'}
                           </StatusChip>
                         </td>

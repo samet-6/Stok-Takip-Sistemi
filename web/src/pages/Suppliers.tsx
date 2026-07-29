@@ -95,7 +95,7 @@ export default function Suppliers() {
                     {isAdmin && <td className="text-muted">{s.phone}</td>}
                     <td className="text-end">{s.productCount}</td>
                     <td>
-                      <StatusChip variant={s.isActive ? 'neutral' : 'crit'}>
+                      <StatusChip variant={s.isActive ? 'ok' : 'crit'}>
                         {s.isActive ? 'Aktif' : 'Pasif'}
                       </StatusChip>
                     </td>

@@ -60,7 +60,7 @@ export default function ProductDetail() {
           <Row>
             <Field label="SKU">{p.sku}</Field>
             <Field label="Durum">
-              <StatusChip variant={p.isActive ? 'neutral' : 'crit'}>
+              <StatusChip variant={p.isActive ? 'ok' : 'crit'}>
                 {p.isActive ? 'Aktif' : 'Pasif'}
               </StatusChip>
             </Field>

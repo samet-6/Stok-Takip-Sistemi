@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type ChipVariant = 'neutral' | 'ok' | 'warn' | 'crit'
+export type ChipVariant = 'ok' | 'warn' | 'crit'
 
 interface StatusChipProps {
   variant: ChipVariant
@@ -10,8 +10,8 @@ interface StatusChipProps {
 }
 
 /**
- * Status pill for the visual system. Colour is reserved for exceptions:
- * neutral = Aktif · ok = Giriş · warn = Düşük · crit = Pasif/Çıkış.
+ * Status pill for the visual system:
+ * ok = Aktif/Giriş · warn = Düşük · crit = Pasif/Çıkış.
  */
 export function StatusChip({ variant, children, dot = true }: StatusChipProps) {
   return (
