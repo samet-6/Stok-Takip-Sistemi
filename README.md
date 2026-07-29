@@ -116,6 +116,24 @@ hazır gelir.
 > bilinçli olarak depoda paylaşılmıştır. Gerçek bir dağıtımda bu değerler bir
 > secret manager üzerinden yönetilir.
 
+## Testler
+
+Yukarıdaki kurulum yapıldıysa PostgreSQL zaten `5433`'te çalışıyor. Ek olarak
+**.NET 10 SDK** gerekir. Depo kökünde:
+
+```bash
+dotnet test -e "STOKTAKIP_TEST_DB=Host=localhost;Port=5433;Database=stoktakip_test;Username=stok;Password=stok_demo_pw"
+```
+
+| Proje | Test |
+|---|---|
+| `tests/StokTakip.UnitTests` | 9 |
+| `tests/StokTakip.IntegrationTests` | 174 |
+
+Testler `stoktakip_test` adında ayrı bir veritabanı kullanır ve her koşuda onu silip
+yeniden oluşturur; uygulamanın veritabanına (`stoktakip`) dokunulmaz. Bağlantı dizesi
+başka bir veritabanını gösteriyorsa testler hiçbir komut çalıştırmadan durur.
+
 ## Ekran Görüntüleri
 
 ![Giriş ekranı](screenshots/01-login.png)
