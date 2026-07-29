@@ -18,8 +18,16 @@ admin'dedir.
 
 - Kategori, tedarikçi ve ürün için tam CRUD.
 - Stok giriş/çıkış hareketleri; hareket kaydı ile stok miktarı tek işlemde güncellenir.
-- Ürün araması (ad, SKU, kategori, tedarikçi) + kategori filtresi + sayfalama.
+- Ürün araması (ad, SKU, kategori, tedarikçi); kategori, tedarikçi, düşük stok ve pasif
+  kayıt filtreleri; sayfalama.
 - Düşük stok ve pasif ürün rozetleri, stok değeri özeti.
+- Gerçek zamanlı envanter: bir kullanıcının girdiği hareket, açık olan diğer oturumların
+  ürün listesinde ve özet kutularında sayfa yenilemeden görünür.
+- Bildirimler: düşük stok, tükenme ve yetersiz stok nedeniyle reddedilen çıkış olayları
+  admin'in zil rozetine anlık düşer. Kayıtlar veritabanında tutulur; admin çevrimdışıyken
+  üretilenler girişte görünür.
+- Eşzamanlılık koruması: aynı ürünü iki kişi aynı anda düzenlerse ikincisi çakışma uyarısı
+  alır, kayıp güncelleme oluşmaz.
 - Rol tabanlı yetkilendirme (Admin / Çalışan), JWT ile oturum.
 - Çift taraflı form doğrulama (backend DataAnnotations + frontend zod).
 
@@ -30,6 +38,7 @@ admin'dedir.
 - Entity Framework Core 10 + Npgsql (PostgreSQL sağlayıcısı)
 - PostgreSQL
 - ASP.NET Core Identity + JWT Bearer (rol tabanlı yetki: Admin / User — UI'da "Çalışan")
+- SignalR (gerçek zamanlı sinyal katmanı; hub yolu `/hubs/stok`)
 - Swagger (Swashbuckle) — yalnız geliştirme ortamında
 
 **Frontend**
@@ -38,10 +47,11 @@ admin'dedir.
 - react-hook-form + zod (form doğrulama)
 - Bootstrap 5 + react-bootstrap
 - axios (JWT interceptor)
+- @microsoft/signalr (hub istemcisi, otomatik yeniden bağlanma)
 
 **Altyapı**
 - Docker + Docker Compose (multi-stage build)
-- nginx (frontend statik sunum + `/api` ters proxy)
+- nginx (frontend statik sunum, `/api` ters proxy ve `/hubs` WebSocket upgrade)
 
 ### Mimari
 
@@ -58,7 +68,7 @@ graph TD
 - **Domain** — framework bağımsız POCO entity'ler ve enum.
 - **Application** — iş kuralları, servisler, DTO'lar; `IAppDbContext` soyutlaması üzerinden çalışır, veritabanı sağlayıcısını tanımaz.
 - **Infrastructure** — EF Core DbContext, migration'lar, seed, Identity ve JWT üretimi.
-- **Api** — ince controller'lar, bağımlılık kaydı, middleware.
+- **Api** — ince controller'lar, bağımlılık kaydı, middleware, SignalR hub'ı. Application yalnız framework bağımsız bir bildirim arayüzü tanır; SignalR'a referans vermez.
 
 ## Kurulum
 
@@ -80,8 +90,9 @@ Servisler ayağa kalktığında uygulama şu adreste hazırdır:
 **http://localhost:3000**
 
 Uygulama ilk açılışta veritabanı şemasını oluşturur ve örnek verilerle
-(4 kategori, 3 tedarikçi, 12 ürün ve stok hareketleri) doldurur. Ek bir
-komut gerekmez.
+(4 kategori, 3 tedarikçi, 12 ürün, 22 stok hareketi) doldurur. Aralarında bilerek
+birer pasif tedarikçi ve pasif ürün vardır; listelerde soluk görünmeleri normaldir.
+Ek bir komut gerekmez.
 
 Durdurmak için: `docker compose down`
 Verileri de silerek sıfırlamak için: `docker compose down -v`
@@ -111,3 +122,4 @@ hazır gelir.
 ![Ürün listesi](screenshots/02-urun-listesi.png)
 ![Ürün detayı ve hareket geçmişi](screenshots/03-urun-detay.png)
 ![Stok hareketi](screenshots/04-stok-hareketi.png)
+![Bildirim paneli](screenshots/05-bildirim-ekrani.png)
