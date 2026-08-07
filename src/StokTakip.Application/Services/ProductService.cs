@@ -37,15 +37,26 @@ public sealed class ProductService : IProductService
             q = q.Where(p => p.StockQuantity <= p.MinStockLevel);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            // Provider-agnostic: EF translates ToLower()+Contains to LOWER(...) LIKE.
-            // Category/Supplier names join through the (required) navigations so a search
-            // like "elektronik" also matches products by their category/supplier.
-            var term = query.Search.Trim().ToLower();
+            // The term is folded by the database (SearchText.Fold -> f_fold), by the very
+            // function that generated the columns it is compared against, so "cop", "çöp" and
+            // "ÇÖP" all reduce to one key. Folding it here in C# is what used to break: the term
+            // went through .NET's culture-sensitive ToLower() and the column through SQL lower()
+            // under the database ctype, so the two rules never met — and the result even changed
+            // between the dev database and the container.
+            //
+            // LIKE rather than Contains(): EF turns Contains() with a non-constant argument into
+            // strpos(...) > 0, which the trigram index cannot serve. Wildcards the user typed are
+            // escaped first; f_fold leaves % _ \ untouched.
+            //
+            // Category/Supplier names join through the (required) navigations, so "elektronik"
+            // still matches products by their category or supplier.
+            var pattern = SearchText.ContainsPattern(query.Search);
+
             q = q.Where(p =>
-                p.Name.ToLower().Contains(term) ||
-                p.SKU.ToLower().Contains(term) ||
-                p.Category.Name.ToLower().Contains(term) ||
-                p.Supplier.Name.ToLower().Contains(term));
+                EF.Functions.Like(EF.Property<string>(p, SearchText.NameFolded), SearchText.Fold(pattern)) ||
+                EF.Functions.Like(EF.Property<string>(p, SearchText.SkuFolded), SearchText.Fold(pattern)) ||
+                EF.Functions.Like(EF.Property<string>(p.Category, SearchText.NameFolded), SearchText.Fold(pattern)) ||
+                EF.Functions.Like(EF.Property<string>(p.Supplier, SearchText.NameFolded), SearchText.Fold(pattern)));
         }
 
         var totalCount = await q.CountAsync(ct);
