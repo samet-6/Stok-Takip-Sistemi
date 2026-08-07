@@ -1,4 +1,6 @@
-import { defineConfig } from 'vite'
+// `vitest/config` re-exports Vite's own defineConfig and adds the `test` key below, so the
+// dev/build config and the test config stay in ONE file and cannot drift apart.
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
@@ -19,5 +21,15 @@ export default defineConfig({
       // would be forwarded and the WebSocket that follows would be dropped.
       '/hubs': { target: 'http://localhost:5000', ws: true },
     },
+  },
+  test: {
+    // Unit/component layer. End-to-end lives in ../e2e (Playwright) and is not run by vitest.
+    environment: 'jsdom',
+    // Testing Library registers its automatic cleanup through the global afterEach, which
+    // only exists when globals are on. Without this, state leaks between test files.
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
+    restoreMocks: true,
   },
 })

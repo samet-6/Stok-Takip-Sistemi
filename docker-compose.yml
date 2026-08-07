@@ -46,6 +46,35 @@ services:
       - "3000:80"
     depends_on:
       - api
+    # nginx:alpine has busybox wget; no extra package needed. The e2e service waits on
+    # this instead of racing the container's startup.
+    # 127.0.0.1, NOT localhost: inside the image `localhost` resolves to ::1 only, while
+    # nginx.conf says `listen 80;` (IPv4). Measured: wget to localhost gets "Connection
+    # refused", to 127.0.0.1 it succeeds — the container-side twin of the Vite note in CLAUDE.md.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Uçtan uca testler. Normal `docker compose up` bunu BAŞLATMAZ — profile ile istenir:
+  #   docker compose --profile e2e up --build --abort-on-container-exit --exit-code-from e2e
+  # Testleri konteyner içinde koşturmanın sebebi: çalıştıran kişinin makinesinde Node,
+  # npm ya da tarayıcı indirmesi gerekmesin.
+  e2e:
+    profiles: ["e2e"]
+    build: ./e2e
+    environment:
+      # Konteyner ağında web nginx'i 80'de dinliyor; 3000 yalnız host tarafındaki eşleme.
+      E2E_BASE_URL: http://web
+      CI: "true"
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      # Rapor ve hata kanıtları (trace/ekran görüntüsü) host'ta kalsın.
+      - ./e2e/playwright-report:/e2e/playwright-report
+      - ./e2e/test-results:/e2e/test-results
 
 volumes:
   stok_pgdata:

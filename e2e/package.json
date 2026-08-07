@@ -1,0 +1,14 @@
+{
+  "name": "stoktakip-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "End-to-end tests. Kept out of web/ because these drive the whole stack (postgres + api + web), not the frontend alone.",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
+  }
+}
