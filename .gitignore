@@ -21,6 +21,7 @@ _ReSharper*/
 
 # Test / coverage
 TestResults/
+artifacts/
 coverage*.json
 coverage*.xml
 *.coverage

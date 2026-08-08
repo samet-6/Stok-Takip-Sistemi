@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Keeps test output out of the repository root. Without it every run drops a TestResults/ folder
+  next to the solution file. Wired into both test projects through <RunSettingsFilePath>, so a
+  plain "dotnet test" picks it up with no extra flag.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <ResultsDirectory>artifacts/test-results</ResultsDirectory>
+  </RunConfiguration>
+</RunSettings>

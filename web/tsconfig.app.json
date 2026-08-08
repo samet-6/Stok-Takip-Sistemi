@@ -4,7 +4,7 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client", "vitest/globals"],
+    "types": ["vite/client"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
@@ -23,5 +23,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* Test files are deliberately outside the production program. A type error in one of them
+     used to fail `npm run build` (tsc -b), and web/Dockerfile runs exactly that command — so a
+     mistake in a test broke the shipped image. They are type-checked by tsconfig.test.json,
+     through the separate `npm run typecheck:test` command. */
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test"]
 }

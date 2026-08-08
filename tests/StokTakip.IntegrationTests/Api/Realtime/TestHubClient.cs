@@ -129,7 +129,14 @@ internal sealed class TestHubClient : IAsyncDisposable
             }
         }
         catch (OperationCanceledException) { }
+        // Three ways the socket can die underneath a read that is already in flight, all of them
+        // meaning the same thing: the connection is on its way out. TestHost reports it as an
+        // IOException wrapping an ObjectDisposedException, which is what made the first attempt at
+        // this fix fail. Deliberately not a blanket catch — a JsonException here would mean the
+        // server sent something malformed, and that must still fail the test.
         catch (WebSocketException) { }
+        catch (ObjectDisposedException) { }
+        catch (IOException) { }
     }
 
     private async Task<string?> ReadRecordAsync(CancellationToken ct)
@@ -152,16 +159,34 @@ internal sealed class TestHubClient : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Close first, drain second, cancel only as a backstop. The original order did the opposite —
+    /// cancel, then close — and that lost roughly one full suite run in four: the read loop stopped,
+    /// the server tore its end of the socket down, and <c>CloseAsync</c> then landed on an already
+    /// disposed <c>TestWebSocket</c>. The exception surfaced in teardown, so a test that had passed
+    /// every one of its assertions was reported red.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
-        await _reading.CancelAsync();
-
         try
         {
+            // The state check is a courtesy, not a guarantee: the server can tear its end down
+            // between reading it and the call landing. Every transport failure family is caught
+            // here for that reason — WebSocketException, the disposed socket, and TestHost's
+            // IOException wrapping of it. There is no domain logic in a close, so nothing worth
+            // failing a test over can come out of this block.
             if (_socket.State == WebSocketState.Open)
                 await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
         }
         catch (WebSocketException) { }
+        catch (ObjectDisposedException) { }
+        catch (IOException) { }
+        catch (OperationCanceledException) { }
+
+        // A well-behaved server answers the close with a close frame, which ends the loop on its
+        // own. The timer is there for the case where it does not — waiting forever would turn a
+        // flaky failure into a hung run, which is worse.
+        _reading.CancelAfter(TimeSpan.FromSeconds(2));
 
         await _readLoop;
         _socket.Dispose();

@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- Test output goes to artifacts/, not the repository root (O37). -->
+    <RunSettingsFilePath>$(MSBuildThisFileDirectory)..\..\.runsettings</RunSettingsFilePath>
     <!-- xunit v3 test projects are executables: the runner is generated into the assembly. -->
     <OutputType>Exe</OutputType>
   </PropertyGroup>

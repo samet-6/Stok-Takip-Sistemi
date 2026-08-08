@@ -17,7 +17,7 @@ namespace StokTakip.IntegrationTests.Api.Realtime;
 /// token, but only if the server actually refuses the session token on that path.
 /// </summary>
 [Collection(DatabaseCollection.Name)]
-public sealed class HubTicketTests
+public sealed class HubTicketTests : IAsyncLifetime
 {
     private const string TicketEndpoint = "/api/auth/hub-ticket";
     private const string Negotiate = "/hubs/stok/negotiate?negotiateVersion=1";
@@ -25,6 +25,11 @@ public sealed class HubTicketTests
     private readonly TestDatabaseFixture _db;
 
     public HubTicketTests(TestDatabaseFixture db) => _db = db;
+
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>Throwaway accounts go out with the class that made them (O25).</summary>
+    public async ValueTask DisposeAsync() => await Api.TestUsers.CleanupAsync(_db, CancellationToken.None);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

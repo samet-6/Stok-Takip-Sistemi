@@ -6,11 +6,16 @@ using Xunit;
 namespace StokTakip.IntegrationTests.Api;
 
 [Collection(DatabaseCollection.Name)]
-public sealed class LoginTests
+public sealed class LoginTests : IAsyncLifetime
 {
     private readonly TestDatabaseFixture _db;
 
     public LoginTests(TestDatabaseFixture db) => _db = db;
+
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>Throwaway accounts go out with the class that made them (O25).</summary>
+    public async ValueTask DisposeAsync() => await TestUsers.CleanupAsync(_db, CancellationToken.None);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

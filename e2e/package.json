@@ -6,9 +6,12 @@
   "description": "End-to-end tests. Kept out of web/ because these drive the whole stack (postgres + api + web), not the frontend alone.",
   "scripts": {
     "test": "playwright test",
+    "typecheck": "tsc --noEmit",
     "report": "playwright show-report"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1"
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.13.3",
+    "typescript": "6.0.3"
   }
 }

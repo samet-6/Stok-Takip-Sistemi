@@ -11,7 +11,7 @@ namespace StokTakip.IntegrationTests.Api;
 /// otherwise a dismissed employee would keep full access until their token happened to expire.
 /// </summary>
 [Collection(DatabaseCollection.Name)]
-public sealed class SessionInvalidationTests
+public sealed class SessionInvalidationTests : IAsyncLifetime
 {
     private const string ProtectedEndpoint = "/api/products";
     private const string NewPassword = "T2Yeni!2026";
@@ -19,6 +19,11 @@ public sealed class SessionInvalidationTests
     private readonly TestDatabaseFixture _db;
 
     public SessionInvalidationTests(TestDatabaseFixture db) => _db = db;
+
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>Throwaway accounts go out with the class that made them (O25).</summary>
+    public async ValueTask DisposeAsync() => await TestUsers.CleanupAsync(_db, CancellationToken.None);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -63,7 +68,10 @@ public sealed class SessionInvalidationTests
         using var admin = await _db.Factory.AsAdminAsync(Ct);
         var response = await admin.PutAsJsonAsync(
             $"/api/users/{user.Id}",
-            new { fullName = "T2 Test Çalışanı", email = $"yeni-{user.Email}" },
+            // The new address keeps the "t2-" prefix rather than being prefixed itself: the sweep
+            // matches on the front of the address, and "yeni-t2-…" was the one account a full run
+            // used to leave behind.
+            new { fullName = "T2 Test Çalışanı", email = $"t2-yeni-{user.Email[3..]}" },
             Ct);
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 

@@ -21,9 +21,16 @@ public sealed class TestDatabaseFixture : IAsyncLifetime
     /// </summary>
     private const string RequiredDatabaseName = "stoktakip_test";
 
+    /// <summary>
+    /// Arbitrary but fixed, and taken on the maintenance database so two runs meet in the same
+    /// place regardless of which test database they are pointed at.
+    /// </summary>
+    private const long RunLockKey = 5150727;
+
     public string ConnectionString { get; private set; } = string.Empty;
 
     private StokTakipFactory? _factory;
+    private NpgsqlConnection? _runLock;
 
     /// <summary>
     /// One application host for the whole run. Booting it per test class would repeat migration
@@ -34,6 +41,7 @@ public sealed class TestDatabaseFixture : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         ConnectionString = ReadConnectionString();
+        _runLock = await AcquireRunLockAsync();
 
         await using var db = CreateContext();
         await db.Database.EnsureDeletedAsync();
@@ -54,6 +62,45 @@ public sealed class TestDatabaseFixture : IAsyncLifetime
     {
         if (_factory is not null)
             await _factory.DisposeAsync();
+
+        // Closing the connection releases the advisory lock; no explicit unlock needed.
+        if (_runLock is not null)
+            await _runLock.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Refuses to start when another run already holds the lock. Without this the second run
+    /// simply called <c>EnsureDeleted</c> on the database the first one was using and both
+    /// collapsed into unrelated-looking errors — easy to hit here, because Visual Studio's Test
+    /// Explorer and the CLI are both in daily use.
+    /// <para>
+    /// The lock is taken on the maintenance database rather than the test database: the test
+    /// database is about to be dropped, and a connection to it would stop that from happening.
+    /// It is held for the whole run and released when this connection closes.
+    /// </para>
+    /// </summary>
+    private async Task<NpgsqlConnection> AcquireRunLockAsync()
+    {
+        var maintenance = new NpgsqlConnectionStringBuilder(ConnectionString) { Database = "postgres" };
+        var connection = new NpgsqlConnection(maintenance.ConnectionString);
+
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand("SELECT pg_try_advisory_lock($1)", connection);
+        command.Parameters.Add(new NpgsqlParameter { Value = RunLockKey });
+
+        if (await command.ExecuteScalarAsync() is not true)
+        {
+            await connection.DisposeAsync();
+
+            throw new InvalidOperationException(
+                "Baska bir test kosusu suruyor. Testler tek bir veritabanini paylasiyor ve kosu " +
+                "ilk isi olarak onu SILIYOR; iki kosu ayni anda calisirsa biri digerinin " +
+                "verisini yok eder. Once digerinin bitmesini bekleyin (ornegin Visual Studio Test " +
+                "Explorer ile komut satiri ayni anda kullanilmis olabilir).");
+        }
+
+        return connection;
     }
 
     public AppDbContext CreateContext()

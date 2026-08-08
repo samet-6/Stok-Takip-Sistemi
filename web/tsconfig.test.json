@@ -1,0 +1,12 @@
+{
+  /* Same compiler rules as the app, with the test globals added. Not listed in tsconfig.json's
+     references on purpose: `tsc -b` (and therefore `npm run build`) must not see this project,
+     or excluding the tests from the app config would have achieved nothing. */
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["vite/client", "vitest/globals"]
+  },
+  "include": ["src"],
+  "exclude": []
+}
