@@ -12,6 +12,7 @@ public sealed class CreateUserRequest
 
     [Required(ErrorMessage = "Bu alan zorunludur")]
     [EmailAddress(ErrorMessage = "Geçerli bir e-posta girin")]
+    [MaxLength(256, ErrorMessage = "En fazla 256 karakter olabilir")]
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Bu alan zorunludur")]

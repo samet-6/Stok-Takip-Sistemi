@@ -12,7 +12,7 @@ namespace StokTakip.IntegrationTests.Api;
 /// through these four endpoints.
 /// </summary>
 [Collection(DatabaseCollection.Name)]
-public sealed class UserManagementTests
+public sealed class UserManagementTests : IAsyncLifetime
 {
     private const string NewPassword = "T3Yeni!2026";
 
@@ -20,7 +20,32 @@ public sealed class UserManagementTests
 
     public UserManagementTests(TestDatabaseFixture db) => _db = db;
 
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>Throwaway accounts go out with the class that made them (O25).</summary>
+    public async ValueTask DisposeAsync() => await TestUsers.CleanupAsync(_db, CancellationToken.None);
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    /// <summary>
+    /// Guards the sweep itself (O25). Deliberately checks the mechanism rather than asserting a
+    /// user count at the end of the run: a count only holds if this test happens to run last, and
+    /// a test whose result depends on its position is the exact fragility O28 is about.
+    /// The two seeded accounts are checked too — a sweep that took those out would break every
+    /// login in the suite.
+    /// </summary>
+    [Fact]
+    public async Task Tek_kullanimlik_hesaplar_supuruluyor_seed_hesaplari_kaliyor()
+    {
+        var user = await TestUsers.CreateCalisanAsync(_db.Factory, Ct);
+
+        await TestUsers.CleanupAsync(_db, Ct);
+
+        await using var db = _db.CreateContext();
+        Assert.False(await db.Users.AnyAsync(u => u.Id == user.Id, Ct));
+        Assert.True(await db.Users.AnyAsync(u => u.Email == StokTakipFactory.AdminEmail, Ct));
+        Assert.True(await db.Users.AnyAsync(u => u.Email == StokTakipFactory.UserEmail, Ct));
+    }
 
     [Fact]
     public async Task Admin_listesinde_yalniz_calisanlar_var_ve_CreatedAt_artan()
@@ -106,6 +131,47 @@ public sealed class UserManagementTests
         // would be worse than an outright failure.
         await using var db = _db.CreateContext();
         Assert.False(await db.Users.AnyAsync(u => u.Email == email, Ct));
+    }
+
+    /// <summary>
+    /// The address column holds 256 characters. Without a matching bound on the request the
+    /// oversized value passes both validation layers and only the database objects, which
+    /// surfaces as a 500 — a rejected input reported as a server fault.
+    /// </summary>
+    [Fact]
+    public async Task Sinirdan_uzun_eposta_ile_kullanici_olusturma_400_email_alani_donuyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var email = TooLongEmail();
+
+        var response = await admin.PostAsJsonAsync(
+            "/api/users", new { fullName = "Uzun Adres", email, password = NewPassword }, Ct);
+
+        await AssertFieldErrorAsync(response, "email");
+
+        await using var db = _db.CreateContext();
+        Assert.False(await db.Users.AnyAsync(u => u.Email == email, Ct));
+    }
+
+    [Fact]
+    public async Task Sinirdan_uzun_epostaya_duzenleme_400_email_alani_donuyor()
+    {
+        var user = await TestUsers.CreateCalisanAsync(_db.Factory, Ct);
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+
+        var response = await admin.PutAsJsonAsync(
+            $"/api/users/{user.Id}",
+            new { fullName = "T3 Test Çalışanı", email = TooLongEmail() },
+            Ct);
+
+        await AssertFieldErrorAsync(response, "email");
+
+        // Rejected at the boundary means the account never moved — a half-applied rename would
+        // leave the employee at an address nobody recorded.
+        await using var db = _db.CreateContext();
+        Assert.Equal(
+            user.Email,
+            await db.Users.Where(u => u.Id == user.Id).Select(u => u.Email).SingleAsync(Ct));
     }
 
     [Fact]
@@ -273,6 +339,12 @@ public sealed class UserManagementTests
             .SingleAsync(Ct);
     }
 
+    /// <summary>
+    /// 257 characters — one past the column — but still a well-formed address, so the format
+    /// check cannot reject it first and stand in for the length bound that is being tested.
+    /// </summary>
+    private static string TooLongEmail() => new string('u', 246) + "@stok.local";
+
     private static async Task AssertFieldErrorAsync(HttpResponseMessage response, string field)
     {
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -280,8 +352,17 @@ public sealed class UserManagementTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
         var errors = document.RootElement.GetProperty("errors");
 
-        Assert.True(errors.TryGetProperty(field, out var messages), $"'{field}' alani beklenmisti.");
-        Assert.NotEmpty(messages.EnumerateArray());
+        // Case-insensitive on purpose: model validation keys the dictionary by the PascalCase
+        // property name, while the services write their own entries in camelCase
+        // (UserService.cs:52). The client matches the same way (formErrors.ts), so naming the
+        // field is the contract — its casing is not.
+        var messages = errors.EnumerateObject()
+            .Where(p => string.Equals(p.Name, field, StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Value)
+            .ToList();
+
+        Assert.True(messages.Count == 1, $"'{field}' alani beklenmisti.");
+        Assert.NotEmpty(messages[0].EnumerateArray());
     }
 
     private sealed record UserRow(

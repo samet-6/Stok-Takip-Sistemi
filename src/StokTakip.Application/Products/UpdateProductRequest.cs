@@ -12,7 +12,7 @@ public sealed class UpdateProductRequest
     [MaxLength(30, ErrorMessage = "En fazla 30 karakter olabilir")]
     public string SKU { get; set; } = string.Empty;
 
-    [MaxLength(1000, ErrorMessage = "En fazla 1000 karakter olabilir")]
+    [MaxLength(500, ErrorMessage = "En fazla 500 karakter olabilir")]
     public string? Description { get; set; }
 
     public int CategoryId { get; set; }

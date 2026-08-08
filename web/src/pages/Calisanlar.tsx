@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Form, Modal, Spinner, Table } from 'react-bootstrap'
 import { getUsers, createUser, updateUser, setUserStatus } from '../api/users'
@@ -14,30 +13,7 @@ import { StatusChip } from '../components/StatusChip'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { applyServerFieldErrors } from '../lib/formErrors'
 import { formatDate } from '../lib/format'
-
-// Password policy mirror (backend is the source of truth; this is for instant UX).
-// On edit the field is optional: empty = unchanged, otherwise must satisfy the policy.
-const passwordRules = z
-  .string()
-  .min(8, 'Şifre en az 8 karakter olmalı')
-  .regex(/[a-z]/, 'En az bir küçük harf içermeli')
-  .regex(/[A-Z]/, 'En az bir büyük harf içermeli')
-  .regex(/\d/, 'En az bir rakam içermeli')
-  .regex(/[^A-Za-z0-9]/, 'En az bir özel karakter içermeli')
-
-function makeSchema(isEdit: boolean) {
-  return z.object({
-    fullName: z
-      .string()
-      .min(1, 'Bu alan zorunludur')
-      .max(100, 'En fazla 100 karakter olabilir'),
-    email: z
-      .string()
-      .min(1, 'Bu alan zorunludur')
-      .email('Geçerli bir e-posta girin'),
-    password: isEdit ? z.union([z.literal(''), passwordRules]) : passwordRules,
-  })
-}
+import { makeUserSchema } from '../lib/schemas'
 
 type UserForm = { fullName: string; email: string; password: string }
 
@@ -64,7 +40,7 @@ export default function Calisanlar() {
     reset,
     setError,
     formState: { errors },
-  } = useForm<UserForm>({ resolver: zodResolver(makeSchema(editing !== null)) })
+  } = useForm<UserForm>({ resolver: zodResolver(makeUserSchema(editing !== null)) })
 
   const openCreate = () => {
     setEditing(null)

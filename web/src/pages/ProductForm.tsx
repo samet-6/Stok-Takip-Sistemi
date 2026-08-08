@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Col, Form, Row, Spinner } from 'react-bootstrap'
@@ -17,26 +16,7 @@ import { useToast } from '../components/toastContext'
 import { PageHeader } from '../components/PageHeader'
 import { applyServerFieldErrors } from '../lib/formErrors'
 import { parseProblemDetails, problemMessage, hasFieldErrors } from '../lib/problemDetails'
-
-const isIntString = (v: string) => /^\d+$/.test(v)
-const isNumberString = (v: string) => v !== '' && !Number.isNaN(Number(v))
-
-const schema = z.object({
-  name: z.string().min(1, 'Bu alan zorunludur').max(150, 'En fazla 150 karakter olabilir'),
-  sku: z.string().min(1, 'Bu alan zorunludur').max(30, 'En fazla 30 karakter olabilir'),
-  description: z.string().max(1000, 'En fazla 1000 karakter olabilir'),
-  categoryId: z.string().min(1, 'Kategori seçin'),
-  supplierId: z.string().min(1, 'Tedarikçi seçin'),
-  unitPrice: z
-    .string()
-    .refine((v) => isNumberString(v) && Number(v) >= 0, 'Geçerli bir sayı girin'),
-  minStockLevel: z.string().refine((v) => isIntString(v), 'Geçerli bir tam sayı girin'),
-  initialStock: z
-    .string()
-    .refine((v) => v === '' || (isIntString(v) && Number(v) >= 1), 'En az 1 olmalıdır'),
-  isActive: z.boolean(),
-})
-type ProductFormValues = z.infer<typeof schema>
+import { productSchema, type ProductFormValues } from '../lib/schemas'
 
 const CREATE_DEFAULTS: ProductFormValues = {
   name: '',
@@ -115,7 +95,7 @@ export default function ProductForm() {
     setError,
     formState: { errors },
   } = useForm<ProductFormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(productSchema),
     defaultValues: CREATE_DEFAULTS,
   })
 
