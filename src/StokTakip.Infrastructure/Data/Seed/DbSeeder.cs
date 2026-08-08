@@ -2,27 +2,70 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using StokTakip.Domain.Entities;
 using StokTakip.Domain.Enums;
 using StokTakip.Infrastructure.Identity;
 
 namespace StokTakip.Infrastructure.Data.Seed;
 
+/// <summary>
+/// Two jobs that used to be one. <b>Bootstrap</b> (roles + the single admin) is what makes the
+/// application usable at all — there is no public registration, so without it nobody can ever log
+/// in. <b>Demo data</b> (the sample employee, four categories, three suppliers, twelve products)
+/// exists for the screenshots and the presentation, and is an all-or-nothing package.
+///
+/// Keeping them apart is what stops a half-filled database from bringing the application down:
+/// the demo block is guarded once, as a whole, instead of table by table.
+/// </summary>
 public static class DbSeeder
 {
-    public static async Task SeedAsync(IServiceProvider sp)
+    public static async Task SeedAsync(IServiceProvider sp, bool includeDemoData)
     {
         var context = sp.GetRequiredService<AppDbContext>();
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
         var config = sp.GetRequiredService<IConfiguration>();
+        var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(DbSeeder));
 
         await SeedRolesAsync(roleManager);
         var admin = await SeedAdminAsync(userManager, config);
-        await SeedUserAsync(userManager, config);
+
+        if (!includeDemoData)
+        {
+            logger.LogInformation("Demo seed atlandi: 'Seed:Demo' kapali.");
+            return;
+        }
+
+        await SeedDemoAsync(context, userManager, config, admin.Id, logger);
+    }
+
+    /// <summary>
+    /// One gate for the whole demo package. The old per-table guards let the product block run
+    /// against a catalogue somebody had since renamed, and the lookup by name then threw on
+    /// startup — the application did not boot at all. A single "has this catalogue been used?"
+    /// check makes that state unreachable: either the demo rows are written together, or none of
+    /// them are.
+    /// </summary>
+    private static async Task SeedDemoAsync(
+        AppDbContext context,
+        UserManager<ApplicationUser> userManager,
+        IConfiguration config,
+        string adminId,
+        ILogger logger)
+    {
+        if (await context.Categories.AnyAsync()
+            || await context.Suppliers.AnyAsync()
+            || await context.Products.AnyAsync())
+        {
+            logger.LogInformation("Demo seed atlandi: katalogda zaten veri var.");
+            return;
+        }
+
+        await SeedUserAsync(userManager, config, logger);
         await SeedCategoriesAsync(context);
         await SeedSuppliersAsync(context);
-        await SeedProductsAndMovementsAsync(context, admin.Id);
+        await SeedProductsAndMovementsAsync(context, adminId, logger);
     }
 
     private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
@@ -50,8 +93,14 @@ public static class DbSeeder
             FullName = "Sistem Yöneticisi"
         };
 
+        // Bootstrap, not demo data: this is deliberately a hard startup failure. There is no
+        // public registration, so a fresh database without an admin password produces an
+        // application nobody can ever log into — coming up "successfully" would hide that.
+        // Restarts never reach this line, because an existing admin returns above.
         var password = config["Seed:AdminPassword"]
-            ?? throw new InvalidOperationException("Seed:AdminPassword is not configured.");
+            ?? throw new InvalidOperationException(
+                "Seed:AdminPassword tanimli degil. Bos bir veritabaninda yonetici hesabi bu " +
+                "parolayla olusturulur; verilmezse uygulamaya hicbir kullanici giris edemez.");
 
         var result = await userManager.CreateAsync(admin, password);
         if (!result.Succeeded)
@@ -63,7 +112,7 @@ public static class DbSeeder
     }
 
     private static async Task SeedUserAsync(
-        UserManager<ApplicationUser> userManager, IConfiguration config)
+        UserManager<ApplicationUser> userManager, IConfiguration config, ILogger logger)
     {
         const string userEmail = "user@stok.local";
         if (await userManager.FindByEmailAsync(userEmail) is not null)
@@ -78,8 +127,15 @@ public static class DbSeeder
             // IsActive + CreatedAt filled by DB defaults (see ApplicationUserConfiguration).
         };
 
-        var password = config["Seed:UserPassword"]
-            ?? throw new InvalidOperationException("Seed:UserPassword is not configured.");
+        // Demo data, unlike the admin above: a missing password skips the sample employee and
+        // leaves the application perfectly usable, so it must never keep the host from starting.
+        var password = config["Seed:UserPassword"];
+        if (password is null)
+        {
+            logger.LogWarning(
+                "Ornek calisan hesabi atlandi: 'Seed:UserPassword' tanimli degil.");
+            return;
+        }
 
         var result = await userManager.CreateAsync(user, password);
         if (!result.Succeeded)
@@ -89,11 +145,10 @@ public static class DbSeeder
         await userManager.AddToRoleAsync(user, "User");
     }
 
+    // The per-table guards these three methods used to carry are gone: SeedDemoAsync decides once,
+    // for the package as a whole, so a guard here could only ever disagree with it.
     private static async Task SeedCategoriesAsync(AppDbContext context)
     {
-        if (await context.Categories.AnyAsync())
-            return;
-
         context.Categories.AddRange(
             new Category { Name = "Elektronik", Description = "Bilgisayar ve elektronik ürünler" },
             new Category { Name = "Gıda", Description = "Gıda ve içecek ürünleri" },
@@ -105,9 +160,6 @@ public static class DbSeeder
 
     private static async Task SeedSuppliersAsync(AppDbContext context)
     {
-        if (await context.Suppliers.AnyAsync())
-            return;
-
         context.Suppliers.AddRange(
             new Supplier
             {
@@ -137,11 +189,9 @@ public static class DbSeeder
         await context.SaveChangesAsync();
     }
 
-    private static async Task SeedProductsAndMovementsAsync(AppDbContext context, string adminId)
+    private static async Task SeedProductsAndMovementsAsync(
+        AppDbContext context, string adminId, ILogger logger)
     {
-        if (await context.Products.AnyAsync())
-            return;
-
         var cats = await context.Categories.ToDictionaryAsync(c => c.Name, c => c.Id);
         var sups = await context.Suppliers.ToDictionaryAsync(s => s.Name, s => s.Id);
 
@@ -152,7 +202,7 @@ public static class DbSeeder
         (StockMovementType, int, string?) AddIn(int q) => (StockMovementType.In, q, "Ek alım");
         (StockMovementType, int, string?) Sale(int q) => (StockMovementType.Out, q, "Satış");
 
-        var products = new List<Product>
+        var products = new List<Product?>
         {
             Build("Kablosuz Mouse", "MOUSE-001", el, anadolu, 349.90m, 5, true, new[] { Init(50), Sale(8) }),
             Build("Mekanik Klavye", "KEYB-001", el, anadolu, 899.00m, 5, true, new[] { Init(30), Sale(5) }),
@@ -168,18 +218,32 @@ public static class DbSeeder
             Build("Bulaşık Deterjanı 1.5L", "DISH-001", tm, marmara, 89.90m, 8, false, new[] { Init(30), Sale(10) })
         };
 
-        context.Products.AddRange(products);
+        context.Products.AddRange(products.OfType<Product>());
         await context.SaveChangesAsync();
 
-        Product Build(string name, string sku, string catName, string supName,
+        // Nullable on purpose. SeedDemoAsync only lets this run against an empty catalogue, so the
+        // two lookups below cannot miss — the rows were written moments ago. The check stays
+        // anyway because the seeder runs during startup: whatever goes wrong here must end up in
+        // the log, never as an exception that keeps the application from booting.
+        Product? Build(string name, string sku, string catName, string supName,
             decimal price, int min, bool active, (StockMovementType type, int qty, string? note)[] moves)
         {
+            if (!cats.TryGetValue(catName, out var categoryId) ||
+                !sups.TryGetValue(supName, out var supplierId))
+            {
+                logger.LogWarning(
+                    "Demo urunu '{Sku}' atlandi: '{Category}' kategorisi veya '{Supplier}' tedarikcisi bulunamadi.",
+                    sku, catName, supName);
+
+                return null;
+            }
+
             var product = new Product
             {
                 Name = name,
                 SKU = sku.ToUpperInvariant(),
-                CategoryId = cats[catName],
-                SupplierId = sups[supName],
+                CategoryId = categoryId,
+                SupplierId = supplierId,
                 UnitPrice = price,
                 MinStockLevel = min,
                 IsActive = active,

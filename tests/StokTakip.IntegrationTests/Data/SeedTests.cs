@@ -1,15 +1,21 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using StokTakip.Domain.Enums;
-using StokTakip.Infrastructure.Data;
 using StokTakip.Infrastructure.Data.Seed;
 using Xunit;
 
 namespace StokTakip.IntegrationTests.Data;
 
 /// <summary>
-/// The seeder runs on every startup, so "runs twice without changing anything" is not a nicety —
-/// it is the only reason restarting the application is safe.
+/// What the seeder does to a database that is <b>already running</b>. The seeder runs on every
+/// startup, so "runs twice without changing anything" is not a nicety — it is the only reason
+/// restarting the application is safe.
+/// <para>
+/// The assertions about what a <i>fresh</i> seed produces — row counts, Turkish spelling, stock
+/// arithmetic — deliberately do not live here. They used to, and they were pinned against the
+/// shared test database, which made them fail whenever some other class forgot to sweep its own
+/// rows: a broken cleanup three files away was reported as "seed is wrong". They moved to
+/// <see cref="SeedScenarioTests"/>, which seeds a database of its own (O28).
+/// </para>
 /// </summary>
 [Collection(DatabaseCollection.Name)]
 public sealed class SeedTests
@@ -22,6 +28,10 @@ public sealed class SeedTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>
+    /// Order-independent by construction: it compares the database against itself, so whatever
+    /// other classes have left lying around is counted on both sides and cancels out.
+    /// </summary>
     [Fact]
     public async Task Seed_ikinci_kez_kostugunda_satir_sayilari_degismiyor()
     {
@@ -30,49 +40,6 @@ public sealed class SeedTests
         await RunSeederAsync();
 
         Assert.Equal(before, await CountsAsync());
-    }
-
-    [Fact]
-    public async Task Seed_sonrasi_stok_miktarlari_hareketlerin_netiyle_ortusuyor()
-    {
-        await using var db = _db.CreateContext();
-
-        var mismatches = await db.Products
-            .Select(p => new
-            {
-                p.SKU,
-                p.StockQuantity,
-                Net = p.Movements.Sum(m => m.Type == StockMovementType.In ? m.Quantity : -m.Quantity)
-            })
-            .Where(x => x.StockQuantity != x.Net)
-            .ToListAsync(Ct);
-
-        Assert.Empty(mismatches);
-    }
-
-    /// <summary>
-    /// The counts are pinned by hand on purpose: a "are there any rows" check would go green on
-    /// a seed that silently lost half its products. The demo data is also what the screenshots
-    /// and the presentation rest on.
-    /// </summary>
-    [Fact]
-    public async Task Seed_verisinin_sekli_sabit()
-    {
-        await using var db = _db.CreateContext();
-
-        Assert.Equal(4, await db.Categories.CountAsync(Ct));
-        Assert.Equal(3, await db.Suppliers.CountAsync(Ct));
-        Assert.Equal(12, await db.Products.CountAsync(Ct));
-        Assert.Equal(22, await db.StockMovements.CountAsync(Ct));
-        Assert.Equal(0, await db.Notifications.CountAsync(Ct));
-
-        // One passive row on each side: the fixtures every "is it filtered out" test leans on.
-        Assert.False(await db.Suppliers.Where(s => s.Name == "Ege Kırtasiye").Select(s => s.IsActive).SingleAsync(Ct));
-        Assert.False(await db.Products.Where(p => p.SKU == "DISH-001").Select(p => p.IsActive).SingleAsync(Ct));
-
-        Assert.Equal(80, await StockOfAsync(db, "PAPR-001"));
-        Assert.Equal(20, await StockOfAsync(db, "DISH-001"));
-        Assert.Equal(120, await StockOfAsync(db, "TRSH-001"));
     }
 
     /// <summary>
@@ -106,7 +73,7 @@ public sealed class SeedTests
     {
         using var scope = _db.Factory.Services.CreateScope();
 
-        await DbSeeder.SeedAsync(scope.ServiceProvider);
+        await DbSeeder.SeedAsync(scope.ServiceProvider, includeDemoData: true);
     }
 
     private async Task<(int Categories, int Suppliers, int Products, int Movements, int Users)> CountsAsync()
@@ -120,9 +87,6 @@ public sealed class SeedTests
             await db.StockMovements.CountAsync(Ct),
             await db.Users.CountAsync(Ct));
     }
-
-    private static Task<int> StockOfAsync(AppDbContext db, string sku) =>
-        db.Products.Where(p => p.SKU == sku).Select(p => p.StockQuantity).SingleAsync(Ct);
 
     private async Task<string> SetFullNameAsync(string fullName, CancellationToken ct)
     {

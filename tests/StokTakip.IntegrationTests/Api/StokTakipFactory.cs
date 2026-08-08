@@ -48,6 +48,9 @@ public sealed class StokTakipFactory : WebApplicationFactory<Program>
         SetVariable("Jwt__Key", JwtKey);
         SetVariable("Jwt__ExpiryHours", "8");
 
+        // Almost every test leans on the demo catalogue, so the suite asks for it explicitly
+        // rather than relying on "Testing is not Production".
+        SetVariable("Seed__Demo", "true");
         SetVariable("Seed__AdminPassword", AdminPassword);
         SetVariable("Seed__UserPassword", UserPassword);
     }

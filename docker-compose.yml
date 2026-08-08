@@ -33,6 +33,9 @@ services:
       Jwt__Audience: StokTakip
       Jwt__ExpiryHours: "8"
       Jwt__Key: "compose-demo-jwt-key-please-change-in-production-0123456789"  # demo (32+) — gerçek ortamda secret yönetimi gerekir
+      # Bu yığın Production olarak koşar ama demo yığınıdır: bayrak olmadan örnek çalışan ve
+      # 12 ürün yazılmaz, hoca boş bir uygulama açar. Gerçek bir dağıtımda bu satır silinir.
+      Seed__Demo: "true"
       Seed__AdminPassword: "Admin123!"  # demo — README'de yayınlanır; gerçek ortamda secret yönetimi gerekir
       Seed__UserPassword: "User123!"    # demo — gerçek ortamda secret yönetimi gerekir
     depends_on:

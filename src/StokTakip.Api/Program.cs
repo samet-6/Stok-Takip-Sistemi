@@ -22,7 +22,6 @@ using StokTakip.Application.Users;
 using StokTakip.Infrastructure.Auth;
 using StokTakip.Infrastructure.Services;
 using StokTakip.Infrastructure.Data;
-using StokTakip.Infrastructure.Data.Seed;
 using StokTakip.Infrastructure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -201,12 +200,15 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    // Apply pending migrations before seeding (idempotent — no-op when up to date),
-    // so a fresh database comes up with a fully migrated schema.
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+    // Demo rows (the sample employee and twelve products) are opt-in outside development, so a
+    // real deployment does not get a second login nobody asked for. The compose stack runs as
+    // Production and *is* the demo, so it turns the flag on explicitly.
+    var seedDemoData =
+        builder.Configuration.GetValue<bool?>("Seed:Demo") ?? !app.Environment.IsProduction();
 
-    await DbSeeder.SeedAsync(scope.ServiceProvider);
+    // Migrate before seeding (idempotent — a no-op when up to date), under an advisory lock so
+    // several replicas starting at once queue up instead of racing.
+    await DatabaseInitializer.InitializeAsync(scope.ServiceProvider, seedDemoData);
 }
 
 if (app.Environment.IsDevelopment())
