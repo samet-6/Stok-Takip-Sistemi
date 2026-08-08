@@ -120,6 +120,70 @@ public sealed class ProductDeletionTests : IAsyncLifetime
         Assert.NotEmpty(detail.RecentMovements);
     }
 
+    /// <summary>
+    /// The blind spot the tests above left open. A refused Out writes a notification but no
+    /// movement row — that is the whole point of the notice — so "no history" and "no rows
+    /// pointing at me" are not the same thing, and the delete used to hit the notification's
+    /// foreign key and answer 500.
+    /// <para>
+    /// The rule the fix settles: a notification is not part of the ledger. The admin can delete
+    /// any of them with one click, so a row the user may discard at will cannot be the reason a
+    /// product must be kept forever — and a notice whose subject no longer exists says nothing
+    /// anyway. The movements are the audit trail, and they are what the branch below protects.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Bildirimi_olan_hareketsiz_urun_gercekten_siliniyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateAsync(admin, "DEL-06");   // no initial stock → no movement
+
+        var refused = await TakeOutAsync(admin, product.Id, 3);
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+
+        await using (var arranged = _db.CreateContext())
+        {
+            // The arrangement is the finding: a notification, and not one movement beside it.
+            Assert.True(await arranged.Notifications.AnyAsync(n => n.ProductId == product.Id, Ct));
+            Assert.False(await arranged.StockMovements.AnyAsync(m => m.ProductId == product.Id, Ct));
+        }
+
+        var response = await admin.DeleteAsync($"/api/products/{product.Id}", Ct);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        await using var db = _db.CreateContext();
+        Assert.False(await db.Products.AnyAsync(p => p.Id == product.Id, Ct));
+        Assert.False(await db.Notifications.AnyAsync(n => n.ProductId == product.Id, Ct));
+    }
+
+    /// <summary>
+    /// The other side of the same rule: history still decides. A product with movements is only
+    /// closed, and its notifications stay with it — nothing was erased, so nothing about them
+    /// needed cleaning up.
+    /// </summary>
+    [Fact]
+    public async Task Hareketli_urunun_bildirimi_pasiflestirmeden_sonra_duruyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateAsync(admin, "DEL-07", initialStock: 10);
+
+        // Below the minimum of 5 → a LowStock notice, on a product that does have a ledger.
+        (await TakeOutAsync(admin, product.Id, 6)).EnsureSuccessStatusCode();
+
+        var response = await admin.DeleteAsync($"/api/products/{product.Id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var db = _db.CreateContext();
+        Assert.False((await db.Products.SingleAsync(p => p.Id == product.Id, Ct)).IsActive);
+        Assert.True(await db.Notifications.AnyAsync(n => n.ProductId == product.Id, Ct));
+    }
+
+    private static Task<HttpResponseMessage> TakeOutAsync(HttpClient admin, int productId, int quantity)
+        => admin.PostAsJsonAsync(
+            "/api/stock-movements",
+            new { productId, type = "Out", quantity, note = TestScratch.NamePrefix + "hareket" },
+            Ct);
+
     private async Task<TestScratch.Product> CreateAsync(HttpClient admin, string sku, int? initialStock = null)
     {
         var (categoryId, supplierId) = await TestScratch.SeedCatalogAsync(_db, Ct);

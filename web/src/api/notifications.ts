@@ -17,3 +17,13 @@ export async function markNotificationRead(id: number): Promise<void> {
 export async function markAllNotificationsRead(): Promise<void> {
   await apiClient.post('/notifications/read-all')
 }
+
+export async function deleteNotification(id: number): Promise<void> {
+  await apiClient.delete(`/notifications/${id}`)
+}
+
+// Clears everything already read. Deliberately not "delete all": an unread notice is one nobody
+// has seen yet, and a single click must not be able to lose it.
+export async function deleteReadNotifications(): Promise<void> {
+  await apiClient.delete('/notifications/read')
+}

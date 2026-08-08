@@ -264,9 +264,20 @@ public sealed class ProductService : IProductService
 
         if (!hasMovements)
         {
+            // Notifications are not history, so they do not save a product from deletion — the
+            // admin can discard any of them with one click, and a notice whose subject no longer
+            // exists says nothing. But they do point at this row, and the foreign key is Restrict:
+            // without this the delete failed with 23001 and surfaced as a 500. Reachable without
+            // any movement at all, because a refused Out writes a notification and no ledger row.
+            var notifications = await _db.Notifications.Where(n => n.ProductId == id).ToListAsync(ct);
+            if (notifications.Count > 0) _db.Notifications.RemoveRange(notifications);
+
+            // One SaveChanges is one transaction: ExecuteDelete would run on its own and could
+            // leave the notifications gone with the product still there.
             _db.Products.Remove(product);
             await _db.SaveChangesAsync(ct);
             _realtime.NotifyProductChanged(id); // a row that vanished is a change like any other
+            if (notifications.Count > 0) _realtime.NotifyNotificationsChanged();
             return null; // hard-deleted
         }
 
