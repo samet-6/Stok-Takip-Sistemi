@@ -123,6 +123,66 @@ public sealed class NotificationRealtimeTests : IAsyncLifetime
             after.Items.Select(n => n.Id));
     }
 
+    /// <summary>
+    /// Deleting is a change like any other, so the bell has to hear it — a second admin session
+    /// left holding a row that no longer exists is the same staleness the signal exists to prevent.
+    /// <para>
+    /// Both halves of the rule are here because they are one promise: the signal follows the row,
+    /// not the request. The empty bulk delete is checked first and its silence would prove nothing
+    /// on its own — the delete that follows is the control, showing the connection was listening
+    /// all along.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Silme_sinyali_yalniz_satir_gercekten_gidince_atiliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateProductAsync(admin, "RT-05", stock: 10, minStockLevel: 5);
+
+        (await NotificationScratch.TakeOutAsync(admin, product.Id, 6, Ct)).EnsureSuccessStatusCode();
+        var notification = Assert.Single(await NotificationScratch.ForProductAsync(_db, product.Id, Ct));
+
+        await using var client = await ConnectAsync(admin);
+
+        // Nothing is read, so there is nothing to clear — and nothing to announce.
+        var empty = await admin.DeleteAsync("/api/notifications/read", Ct);
+        Assert.Equal(HttpStatusCode.NoContent, empty.StatusCode);
+
+        await client.SettleAsync(Ct);
+        Assert.DoesNotContain(client.Received, s => s.Target == RealtimeEvents.NotificationsChanged);
+
+        (await admin.DeleteAsync($"/api/notifications/{notification.Id}", Ct)).EnsureSuccessStatusCode();
+
+        var signal = await client.WaitForAsync(RealtimeEvents.NotificationsChanged, Ct);
+        Assert.Null(Assert.Single(signal.Arguments));
+    }
+
+    /// <summary>
+    /// Hard-deleting a product takes its notifications with it, so the bell has to hear about it
+    /// too — otherwise the panel keeps offering a notice whose product is gone, and clicking it
+    /// lands on a 404. The product signal alone would not do: it is a different query key.
+    /// </summary>
+    [Fact]
+    public async Task Bildirimli_urun_silinince_bildirim_sinyali_de_atiliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var (categoryId, supplierId) = await MovementScratch.SeedCatalogAsync(_db, Ct);
+
+        // No opening stock → no movement, so DELETE takes the hard path.
+        var product = await MovementScratch.CreateProductAsync(
+            admin, "RT-06", categoryId, supplierId, Ct, minStockLevel: 5);
+
+        var refused = await NotificationScratch.TakeOutAsync(admin, product.Id, 3, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+
+        await using var client = await ConnectAsync(admin);
+
+        var deleted = await admin.DeleteAsync($"/api/products/{product.Id}", Ct);
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+
+        await client.WaitForAsync(RealtimeEvents.NotificationsChanged, Ct);
+    }
+
     private async Task<TestHubClient> ConnectAsync(HttpClient client)
     {
         var response = await client.PostAsync("/api/auth/hub-ticket", null, Ct);

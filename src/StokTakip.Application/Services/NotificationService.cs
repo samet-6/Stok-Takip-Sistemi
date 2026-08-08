@@ -90,4 +90,36 @@ public sealed class NotificationService : INotificationService
         _realtime.NotifyNotificationsChanged();
         return unread.Count;
     }
+
+    /// <summary>
+    /// Deleting belongs on the read side even though the write side lives elsewhere: this is a
+    /// user acting on a notice they are done with, not an event the ledger produced, so there is
+    /// no business transaction to share.
+    /// </summary>
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+    {
+        var row = await _db.Notifications.FirstOrDefaultAsync(n => n.Id == id, ct);
+        if (row is null) return false;
+
+        _db.Notifications.Remove(row);
+        await _db.SaveChangesAsync(ct);
+        _realtime.NotifyNotificationsChanged();
+
+        return true;
+    }
+
+    public async Task<int> DeleteReadAsync(CancellationToken ct)
+    {
+        var read = await _db.Notifications.Where(n => n.ReadAt != null).ToListAsync(ct);
+
+        // Same discipline as MarkAllReadAsync: nothing changed, nothing announced. A signal here
+        // would send every open panel back to the server to rediscover the list it already has.
+        if (read.Count == 0) return 0;
+
+        _db.Notifications.RemoveRange(read);
+        await _db.SaveChangesAsync(ct);
+        _realtime.NotifyNotificationsChanged();
+
+        return read.Count;
+    }
 }

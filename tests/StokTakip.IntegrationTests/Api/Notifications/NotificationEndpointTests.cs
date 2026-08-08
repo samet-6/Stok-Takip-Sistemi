@@ -24,10 +24,11 @@ public sealed class NotificationEndpointTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await MovementScratch.CleanupAsync(_db, CancellationToken.None);
 
-    /// <summary>All three, not just the list: a role check is per-action, and an endpoint added
-    /// later inherits nothing from the ones tested before it.</summary>
+    /// <summary>Every one of them, not just the list: a role check is per-action, and an endpoint
+    /// added later inherits nothing from the ones tested before it — the two delete endpoints are
+    /// here for exactly that reason.</summary>
     [Fact]
-    public async Task Calisan_uc_bildirim_ucuna_da_403_aliyor()
+    public async Task Calisan_bildirim_uclarinin_hepsinde_403_aliyor()
     {
         using var calisan = await _db.Factory.AsCalisanAsync(Ct);
 
@@ -40,6 +41,12 @@ public sealed class NotificationEndpointTests : IAsyncLifetime
         Assert.Equal(
             HttpStatusCode.Forbidden,
             (await calisan.PostAsync("/api/notifications/read-all", null, Ct)).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await calisan.DeleteAsync("/api/notifications/1", Ct)).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await calisan.DeleteAsync("/api/notifications/read", Ct)).StatusCode);
     }
 
     /// <summary>
@@ -151,8 +158,10 @@ public sealed class NotificationEndpointTests : IAsyncLifetime
     /// <summary>
     /// There is no endpoint that creates a notification, and that is a design decision rather than
     /// an omission: every row is produced by a stock event, so an external writer could only ever
-    /// insert something the ledger cannot account for. Read from the application's own route table
-    /// so a new endpoint cannot slip in unnoticed.
+    /// insert something the ledger cannot account for. Deleting one is the opposite case — a user
+    /// action on a notice they are done with — which is why the two DELETE routes belong here and
+    /// a POST never will. Read from the application's own route table so a new endpoint cannot
+    /// slip in unnoticed.
     /// </summary>
     [Fact]
     public async Task Bildirim_olusturma_ucu_yok()
@@ -169,7 +178,13 @@ public sealed class NotificationEndpointTests : IAsyncLifetime
             .ToArray();
 
         Assert.Equal(
-            ["GET api/notifications", "POST api/notifications/read-all", "POST api/notifications/{id:int}/read"],
+            [
+                "DELETE api/notifications/read",
+                "DELETE api/notifications/{id:int}",
+                "GET api/notifications",
+                "POST api/notifications/read-all",
+                "POST api/notifications/{id:int}/read"
+            ],
             writeRoutes);
     }
 

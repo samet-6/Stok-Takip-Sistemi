@@ -33,4 +33,19 @@ public sealed class NotificationsController : ControllerBase
         await _notificationService.MarkAllReadAsync(ct);
         return NoContent();
     }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+        => await _notificationService.DeleteAsync(id, ct) ? NoContent() : NotFound();
+
+    /// <summary>
+    /// Clears everything already dealt with. No route ambiguity with the one above: the
+    /// <c>{id:int}</c> constraint cannot match "read".
+    /// </summary>
+    [HttpDelete("read")]
+    public async Task<IActionResult> DeleteRead(CancellationToken ct)
+    {
+        await _notificationService.DeleteReadAsync(ct);
+        return NoContent();
+    }
 }

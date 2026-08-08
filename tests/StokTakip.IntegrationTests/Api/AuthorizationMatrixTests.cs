@@ -84,7 +84,13 @@ public sealed class AuthorizationMatrixTests
 
         new("GET", "api/notifications", "/api/notifications", Access.Unauthorized, Access.Forbidden, Access.Allowed),
         new("POST", "api/notifications/{id:int}/read", $"/api/notifications/{MissingId}/read", Access.Unauthorized, Access.Forbidden, Access.Allowed),
-        new("POST", "api/notifications/read-all", "/api/notifications/read-all", Access.Unauthorized, Access.Forbidden, Access.Allowed)
+        new("POST", "api/notifications/read-all", "/api/notifications/read-all", Access.Unauthorized, Access.Forbidden, Access.Allowed),
+        new("DELETE", "api/notifications/{id:int}", $"/api/notifications/{MissingId}", Access.Unauthorized, Access.Forbidden, Access.Allowed),
+        // The one row with no missing-id escape hatch: this endpoint takes no target, so the
+        // admin's allowed call really does clear the read notifications. Harmless for the same
+        // reason POST read-all above is — the table is empty here (T1 pins the seed at zero and
+        // every notification test sweeps after itself), so there is nothing to clear.
+        new("DELETE", "api/notifications/read", "/api/notifications/read", Access.Unauthorized, Access.Forbidden, Access.Allowed)
     ];
 
     private readonly TestDatabaseFixture _db;
