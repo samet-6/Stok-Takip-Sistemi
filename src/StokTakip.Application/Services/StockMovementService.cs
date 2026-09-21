@@ -53,12 +53,12 @@ public sealed class StockMovementService : IStockMovementService
         // start as ...+03:00), so the comparison below runs UTC-vs-UTC.
         if (query.From is DateTime from)
         {
-            var fromUtc = ToUtc(from);
+            var fromUtc = FilterInstant.ToUtc(from);
             q = q.Where(m => m.CreatedAt >= fromUtc);
         }
         if (query.To is DateTime to)
         {
-            var toUtc = ToUtc(to);
+            var toUtc = FilterInstant.ToUtc(to);
             q = q.Where(m => m.CreatedAt <= toUtc);
         }
 
@@ -285,14 +285,4 @@ public sealed class StockMovementService : IStockMovementService
         if (entity is not null) _db.Entry(entity).State = EntityState.Detached;
     }
 
-    // Normalizes a filter bound to a UTC instant for the timestamptz comparison. Offset-aware
-    // input (the expected path: frontend sends the local day boundary with its offset) arrives
-    // as Local/Utc and is converted; an offset-less value (Unspecified) is a defensive fallback
-    // treated as already-UTC so Npgsql accepts it.
-    private static DateTime ToUtc(DateTime value) => value.Kind switch
-    {
-        DateTimeKind.Utc => value,
-        DateTimeKind.Local => value.ToUniversalTime(),
-        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
-    };
 }
