@@ -1,4 +1,4 @@
-import { makeUserSchema, productSchema } from './schemas'
+import { makeUserSchema, productSchema } from '../lib/schemas'
 
 // 257 characters — one past the AspNetUsers.Email column — but a well-formed address, so the
 // format rule cannot reject it in place of the length rule under test.
