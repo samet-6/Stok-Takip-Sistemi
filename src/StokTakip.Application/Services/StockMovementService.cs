@@ -72,6 +72,7 @@ public sealed class StockMovementService : IStockMovementService
             .Select(m => new
             {
                 m.Id, m.ProductId, ProductName = m.Product.Name,
+                ProductIsActive = m.Product.IsActive,
                 m.Type, m.Quantity, m.Note, m.CreatedAt, m.CreatedByUserId
             })
             .ToListAsync(ct);
@@ -81,7 +82,8 @@ public sealed class StockMovementService : IStockMovementService
 
         var items = rows
             .Select(r => new StockMovementDto(
-                r.Id, r.ProductId, r.ProductName, r.Type, r.Quantity, r.Note, r.CreatedAt,
+                r.Id, r.ProductId, r.ProductName, r.ProductIsActive,
+                r.Type, r.Quantity, r.Note, r.CreatedAt,
                 r.CreatedByUserId,
                 names.TryGetValue(r.CreatedByUserId, out var fullName) ? fullName : string.Empty))
             .ToList();
@@ -177,7 +179,7 @@ public sealed class StockMovementService : IStockMovementService
 
         var names = await _userLookup.GetFullNamesAsync([userId], ct);
         var dto = new StockMovementDto(
-            movement.Id, product.Id, product.Name, movement.Type, movement.Quantity,
+            movement.Id, product.Id, product.Name, product.IsActive, movement.Type, movement.Quantity,
             movement.Note, movement.CreatedAt, userId,
             names.TryGetValue(userId, out var fullName) ? fullName : string.Empty);
 

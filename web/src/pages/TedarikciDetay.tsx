@@ -6,6 +6,7 @@ import { getSuppliers } from '../api/suppliers'
 import { CatalogDetailView } from '../components/CatalogDetailView'
 import { SupplierFormModal } from '../components/SupplierFormModal'
 import { StatusChip } from '../components/StatusChip'
+import { DeactivationNote } from '../components/DeactivationNote'
 import { useIsAdmin } from '../stores/authStore'
 
 // Supplier detail, readable by any authenticated user (Admin + Çalışan). The edit
@@ -54,6 +55,7 @@ export default function TedarikciDetay() {
               <StatusChip variant={supplier.isActive ? 'ok' : 'crit'}>
                 {supplier.isActive ? 'Aktif' : 'Pasif'}
               </StatusChip>
+              {!supplier.isActive && <DeactivationNote at={supplier.deactivatedAt} />}
             </div>
             {isAdmin && (
               <Button variant="outline-secondary" size="sm" onClick={() => setShowEdit(true)}>

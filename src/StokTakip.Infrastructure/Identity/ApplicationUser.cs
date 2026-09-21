@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Identity;
+using StokTakip.Domain.Common;
 
 namespace StokTakip.Infrastructure.Identity;
 
-public class ApplicationUser : IdentityUser
+public class ApplicationUser : IdentityUser, IDeactivatable
 {
     public string FullName { get; set; } = null!;
 

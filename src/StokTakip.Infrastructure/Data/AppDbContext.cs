@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using StokTakip.Application.Common;
 using StokTakip.Domain.Common;
 using StokTakip.Domain.Entities;
@@ -62,6 +63,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
 
             if (entry.State == EntityState.Modified && entry.Entity is IAuditable modifiedAuditable)
                 modifiedAuditable.UpdatedAt = now;
+
+            // "Since when is this out of use" is one question, so it gets one answer, written
+            // here instead of by each service that happens to flip the flag. Only a real
+            // transition writes: an edit that leaves IsActive alone must not move the date,
+            // which is why the property — not the entity — is asked whether it changed.
+            if (entry.Entity is IDeactivatable deactivatable && ChangedActivity(entry))
+                deactivatable.DeactivatedAt = deactivatable.IsActive ? null : now;
         }
     }
+
+    private static bool ChangedActivity(EntityEntry entry) => entry.State switch
+    {
+        // A row can also be born passive; it deserves the same stamp as one that was switched off.
+        EntityState.Added => !((IDeactivatable)entry.Entity).IsActive,
+        EntityState.Modified => entry.Property(nameof(IDeactivatable.IsActive)).IsModified,
+        _ => false
+    };
 }

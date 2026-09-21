@@ -6,6 +6,7 @@ import { getProduct } from '../api/products'
 import { useIsAdmin } from '../stores/authStore'
 import { PageHeader } from '../components/PageHeader'
 import { StatusChip } from '../components/StatusChip'
+import { DeactivationNote } from '../components/DeactivationNote'
 import { formatCurrency, formatDateTime } from '../lib/format'
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -63,6 +64,7 @@ export default function ProductDetail() {
               <StatusChip variant={p.isActive ? 'ok' : 'crit'}>
                 {p.isActive ? 'Aktif' : 'Pasif'}
               </StatusChip>
+              {!p.isActive && <DeactivationNote at={p.deactivatedAt} />}
             </Field>
             <Field label="Kategori">{p.categoryName}</Field>
             <Field label="Tedarikçi">{p.supplierName}</Field>

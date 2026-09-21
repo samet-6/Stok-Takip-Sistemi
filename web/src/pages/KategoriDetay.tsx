@@ -5,6 +5,8 @@ import { Alert, Breadcrumb, Button, Card, Spinner } from 'react-bootstrap'
 import { getCategories } from '../api/categories'
 import { CatalogDetailView } from '../components/CatalogDetailView'
 import { CategoryFormModal } from '../components/CategoryFormModal'
+import { StatusChip } from '../components/StatusChip'
+import { DeactivationNote } from '../components/DeactivationNote'
 import { useIsAdmin } from '../stores/authStore'
 
 // Category detail, readable by any authenticated user (Admin + Çalışan). The edit
@@ -47,7 +49,13 @@ export default function KategoriDetay() {
       <Card className="mb-4">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-start mb-2">
-            <h2 className="mb-0">{category.name}</h2>
+            <div className="d-flex align-items-center gap-2">
+              <h2 className="mb-0">{category.name}</h2>
+              <StatusChip variant={category.isActive ? 'ok' : 'crit'}>
+                {category.isActive ? 'Aktif' : 'Pasif'}
+              </StatusChip>
+              {!category.isActive && <DeactivationNote at={category.deactivatedAt} />}
+            </div>
             {isAdmin && (
               <Button variant="outline-secondary" size="sm" onClick={() => setShowEdit(true)}>
                 Düzenle

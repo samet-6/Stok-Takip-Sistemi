@@ -33,8 +33,11 @@ internal static class TestScratch
             // Notifications and movements point at products, so they go first. Notifications
             // matter beyond the foreign key: T1 asserts the seeded database holds none.
             await context.Notifications.Where(n => productIds.Contains(n.ProductId)).ExecuteDeleteAsync(ct);
-            await context.StockMovements.Where(m => productIds.Contains(m.ProductId)).ExecuteDeleteAsync(ct);
-            await context.Products.Where(p => productIds.Contains(p.Id)).ExecuteDeleteAsync(ct);
+            await AppendOnlyGuard.SuspendedAsync(context, async () =>
+            {
+                await context.StockMovements.Where(m => productIds.Contains(m.ProductId)).ExecuteDeleteAsync(ct);
+                await context.Products.Where(p => productIds.Contains(p.Id)).ExecuteDeleteAsync(ct);
+            }, ct);
         }
 
         await context.Suppliers.Where(s => s.Name.StartsWith(NamePrefix)).ExecuteDeleteAsync(ct);

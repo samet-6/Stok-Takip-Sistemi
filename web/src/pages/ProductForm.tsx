@@ -222,6 +222,7 @@ export default function ProductForm() {
   }
 
   const currentSupplierId = productQuery.data?.supplierId
+  const currentCategoryId = productQuery.data?.categoryId
 
   return (
     <div style={{ maxWidth: 640 }}>
@@ -274,11 +275,17 @@ export default function ProductForm() {
               <Form.Label>Kategori</Form.Label>
               <Form.Select {...register('categoryId')} isInvalid={!!errors.categoryId}>
                 <option value="">Seçiniz…</option>
-                {categoriesQuery.data!.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+                {categoriesQuery.data!.map((c) => {
+                  // Same rule as suppliers: a passive category cannot be picked, but a product
+                  // already sitting in one stays editable instead of losing its category.
+                  const isCurrent = c.id === currentCategoryId
+                  return (
+                    <option key={c.id} value={c.id} disabled={!c.isActive && !isCurrent}>
+                      {c.name}
+                      {!c.isActive ? ' (Pasif)' : ''}
+                    </option>
+                  )
+                })}
               </Form.Select>
               <Form.Control.Feedback type="invalid">
                 {errors.categoryId?.message}

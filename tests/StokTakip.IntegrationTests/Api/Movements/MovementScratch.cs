@@ -34,8 +34,11 @@ internal static class MovementScratch
         if (productIds.Count > 0)
         {
             await context.Notifications.Where(n => productIds.Contains(n.ProductId)).ExecuteDeleteAsync(ct);
-            await context.StockMovements.Where(m => productIds.Contains(m.ProductId)).ExecuteDeleteAsync(ct);
-            await context.Products.Where(p => productIds.Contains(p.Id)).ExecuteDeleteAsync(ct);
+            await AppendOnlyGuard.SuspendedAsync(context, async () =>
+            {
+                await context.StockMovements.Where(m => productIds.Contains(m.ProductId)).ExecuteDeleteAsync(ct);
+                await context.Products.Where(p => productIds.Contains(p.Id)).ExecuteDeleteAsync(ct);
+            }, ct);
         }
 
         await context.Suppliers.Where(s => s.Name.StartsWith(NamePrefix)).ExecuteDeleteAsync(ct);

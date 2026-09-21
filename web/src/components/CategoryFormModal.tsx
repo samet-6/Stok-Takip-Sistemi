@@ -12,6 +12,7 @@ import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 const schema = z.object({
   name: z.string().min(1, 'Bu alan zorunludur').max(100, 'En fazla 100 karakter olabilir'),
   description: z.string().max(500, 'En fazla 500 karakter olabilir'),
+  isActive: z.boolean(),
 })
 type CategoryForm = z.infer<typeof schema>
 
@@ -41,15 +42,22 @@ export function CategoryFormModal({
     if (!show) return
     reset(
       category
-        ? { name: category.name, description: category.description ?? '' }
-        : { name: '', description: '' },
+        ? {
+            name: category.name,
+            description: category.description ?? '',
+            isActive: category.isActive,
+          }
+        : { name: '', description: '', isActive: true },
     )
   }, [show, category, reset])
 
   const saveMutation = useMutation({
     mutationFn: (values: CategoryForm) => {
+      // Categories are born active, like suppliers: the switch only exists while editing.
       const body = { name: values.name, description: values.description || null }
-      return category ? updateCategory(category.id, body) : createCategory(body)
+      return category
+        ? updateCategory(category.id, { ...body, isActive: values.isActive })
+        : createCategory(body)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] })
@@ -90,6 +98,15 @@ export function CategoryFormModal({
               {errors.description?.message}
             </Form.Control.Feedback>
           </Form.Group>
+          {category && (
+            <Form.Check
+              type="switch"
+              id="category-isactive"
+              label="Aktif"
+              className="mt-3"
+              {...register('isActive')}
+            />
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onHide} disabled={saveMutation.isPending}>

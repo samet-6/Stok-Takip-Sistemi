@@ -108,6 +108,48 @@ public sealed class ConstraintTests
         Assert.Equal("FK_Products_Categories_CategoryId", error.ConstraintName);
     }
 
+    /// <summary>
+    /// Append-only was a rule with nowhere to live: the API simply has no update or delete
+    /// endpoint for movements, which stops the application and nothing else. These two go at the
+    /// table directly — raw SQL, EF bypassed — so whatever reaches the database later (another
+    /// service, a migration, someone in pgAdmin) meets the same refusal.
+    /// </summary>
+    [Fact]
+    public async Task Stok_hareketi_veritabani_seviyesinde_guncellenemiyor()
+    {
+        await using var db = _db.CreateContext();
+        // An anonymous type, not a tuple: EF turns a tuple projection into a PostgreSQL record,
+        // which Npgsql refuses to read back.
+        var movement = await db.StockMovements.Select(m => new { m.Id, m.Quantity }).FirstAsync(Ct);
+
+        var error = await Assert.ThrowsAsync<PostgresException>(() =>
+            db.Database.ExecuteSqlRawAsync(
+                """UPDATE "StockMovements" SET "Quantity" = "Quantity" + 1 WHERE "Id" = {0}""",
+                [movement.Id], Ct));
+
+        Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
+        Assert.Contains("append-only", error.MessageText);
+
+        // A refusal that still wrote would be the worst of both worlds, so the row is read back.
+        Assert.Equal(movement.Quantity, await db.StockMovements.Where(m => m.Id == movement.Id)
+            .Select(m => m.Quantity).SingleAsync(Ct));
+    }
+
+    [Fact]
+    public async Task Stok_hareketi_veritabani_seviyesinde_silinemiyor()
+    {
+        await using var db = _db.CreateContext();
+        var id = await db.StockMovements.Select(m => m.Id).FirstAsync(Ct);
+
+        var error = await Assert.ThrowsAsync<PostgresException>(() =>
+            db.Database.ExecuteSqlRawAsync(
+                """DELETE FROM "StockMovements" WHERE "Id" = {0}""", [id], Ct));
+
+        Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
+        Assert.Contains("append-only", error.MessageText);
+        Assert.True(await db.StockMovements.AnyAsync(m => m.Id == id, Ct));
+    }
+
     private async Task<(int CategoryId, int SupplierId)> SeedIdsAsync(AppDbContext db) =>
         (await db.Categories.Select(c => c.Id).FirstAsync(Ct),
          await db.Suppliers.Select(s => s.Id).FirstAsync(Ct));

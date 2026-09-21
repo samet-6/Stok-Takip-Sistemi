@@ -144,16 +144,11 @@ public sealed class UserService : IUserService
         if (await _userManager.IsInRoleAsync(user, AdminRole))
             throw new BadRequestException("Admin hesabı yönetilemez.");
 
-        if (request.IsActive)
-        {
-            user.IsActive = true;
-            user.DeactivatedAt = null; // İşe geri alındı — old password preserved.
-        }
-        else
-        {
-            user.IsActive = false;
-            user.DeactivatedAt = DateTime.UtcNow; // İşten çıkarıldı.
-        }
+        // Only the flag is set here. DeactivatedAt is stamped (and cleared on reactivation) by
+        // AppDbContext.ApplyAudit, the same rule that serves the catalogue — so "İşten Çıkış"
+        // cannot drift from the date a product or supplier gets for the same transition.
+        // Reactivation preserves the old password.
+        user.IsActive = request.IsActive;
 
         await _userManager.UpdateAsync(user);
     }

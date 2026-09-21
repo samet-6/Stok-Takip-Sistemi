@@ -8,6 +8,7 @@ import { useToast } from '../components/toastContext'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { CategoryFormModal } from '../components/CategoryFormModal'
 import { PageHeader } from '../components/PageHeader'
+import { StatusChip } from '../components/StatusChip'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { useIsAdmin } from '../stores/authStore'
 
@@ -70,19 +71,20 @@ export default function Categories() {
                 <th>Ad</th>
                 <th>Açıklama</th>
                 <th className="text-end">Ürün sayısı</th>
+                <th>Durum</th>
                 {isAdmin && <th className="text-end">İşlemler</th>}
               </tr>
             </thead>
             <tbody>
               {listQuery.data!.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 4 : 3} className="text-center text-muted py-4">
+                  <td colSpan={isAdmin ? 5 : 4} className="text-center text-muted py-4">
                     Kategori yok.
                   </td>
                 </tr>
               ) : (
                 listQuery.data!.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} className={c.isActive ? undefined : 'row-muted'}>
                     <td>
                       <Link to={`/kategoriler/${c.id}`} className="text-decoration-none">
                         {c.name}
@@ -90,6 +92,11 @@ export default function Categories() {
                     </td>
                     <td className="text-muted">{c.description}</td>
                     <td className="text-end">{c.productCount}</td>
+                    <td>
+                      <StatusChip variant={c.isActive ? 'ok' : 'crit'}>
+                        {c.isActive ? 'Aktif' : 'Pasif'}
+                      </StatusChip>
+                    </td>
                     {isAdmin && (
                       <td className="text-end text-nowrap">
                         <Button

@@ -17,6 +17,8 @@ public sealed record ProductDetailDto(
     // kuruş with the totals reported by ProductSummaryDto.
     decimal StockValue,
     bool IsActive,
+    // Null while active, and also null for rows switched off before the stamp existed.
+    DateTime? DeactivatedAt,
     uint RowVersion,
     DateTime CreatedAt,
     DateTime UpdatedAt,

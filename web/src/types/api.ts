@@ -90,6 +90,10 @@ export interface CategoryDto {
   id: number
   name: string
   description?: string | null
+  isActive: boolean
+  /** ISO 8601 → "… tarihinde pasife alındı". Null while active, and null for rows switched
+   *  off before the stamp existed — read it as unknown, not as just now. */
+  deactivatedAt?: string | null
   productCount: number
   createdAt: string
   updatedAt: string
@@ -103,6 +107,7 @@ export interface CreateCategoryRequest {
 export interface UpdateCategoryRequest {
   name: string
   description?: string | null
+  isActive: boolean
 }
 
 // --- Suppliers ---
@@ -113,6 +118,7 @@ export interface SupplierDto {
   phone?: string | null
   address?: string | null
   isActive: boolean
+  deactivatedAt?: string | null
   productCount: number
   createdAt: string
   updatedAt: string
@@ -175,6 +181,7 @@ export interface ProductDetailDto {
   /** unitPrice × stockQuantity, multiplied by the database. */
   stockValue: number
   isActive: boolean
+  deactivatedAt?: string | null
   rowVersion: number
   createdAt: string
   updatedAt: string
@@ -209,6 +216,8 @@ export interface StockMovementDto {
   id: number
   productId: number
   productName: string
+  /** The ledger keeps showing products that left the catalogue; false marks them "(pasif)". */
+  productIsActive: boolean
   type: MovementType
   quantity: number
   note?: string | null

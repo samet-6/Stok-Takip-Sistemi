@@ -10,4 +10,6 @@ public sealed class UpdateCategoryRequest
 
     [MaxLength(500, ErrorMessage = "En fazla 500 karakter olabilir")]
     public string? Description { get; set; }
+
+    public bool IsActive { get; set; }
 }

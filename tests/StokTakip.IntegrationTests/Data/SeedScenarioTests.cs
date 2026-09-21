@@ -164,8 +164,11 @@ public sealed class SeedScenarioTests : IAsyncLifetime
             category.Name = renamed;
 
             await db.Notifications.ExecuteDeleteAsync(Ct);
-            await db.StockMovements.ExecuteDeleteAsync(Ct);
-            await db.Products.ExecuteDeleteAsync(Ct);
+            await AppendOnlyGuard.SuspendedAsync(db, async () =>
+            {
+                await db.StockMovements.ExecuteDeleteAsync(Ct);
+                await db.Products.ExecuteDeleteAsync(Ct);
+            }, Ct);
             await db.SaveChangesAsync(Ct);
         }
 

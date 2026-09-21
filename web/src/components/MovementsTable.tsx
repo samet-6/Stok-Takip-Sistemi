@@ -29,7 +29,12 @@ export function MovementsTable({
         <tbody>
           {items.map((m) => (
             <tr key={m.id}>
-              <td>{m.productName}</td>
+              <td>
+                {m.productName}
+                {/* The row stays in the ledger after the product leaves the catalogue —
+                    hiding it would quietly change past totals. The tag says why it is here. */}
+                {!m.productIsActive && <span className="text-muted"> (pasif)</span>}
+              </td>
               <td>
                 <StatusChip variant={m.type === 'In' ? 'ok' : 'crit'}>
                   {m.type === 'In' ? 'Giriş' : 'Çıkış'}

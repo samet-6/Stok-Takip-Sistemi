@@ -2,7 +2,7 @@ using StokTakip.Domain.Common;
 
 namespace StokTakip.Domain.Entities;
 
-public class Product : IAuditable
+public class Product : IAuditable, IDeactivatable
 {
     public int Id { get; set; }
     public required string Name { get; set; }
@@ -14,6 +14,7 @@ public class Product : IAuditable
     public int StockQuantity { get; set; }
     public int MinStockLevel { get; set; }
     public bool IsActive { get; set; }
+    public DateTime? DeactivatedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

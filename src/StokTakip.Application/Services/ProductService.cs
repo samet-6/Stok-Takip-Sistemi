@@ -135,7 +135,7 @@ public sealed class ProductService : IProductService
                 CategoryName = x.Category.Name,
                 x.SupplierId,
                 SupplierName = x.Supplier.Name,
-                x.UnitPrice, x.StockQuantity, x.MinStockLevel, x.IsActive,
+                x.UnitPrice, x.StockQuantity, x.MinStockLevel, x.IsActive, x.DeactivatedAt,
                 StockValue = x.UnitPrice * x.StockQuantity,
                 x.RowVersion,
                 x.CreatedAt, x.UpdatedAt, x.Description,
@@ -159,7 +159,7 @@ public sealed class ProductService : IProductService
 
         var movements = p.Movements
             .Select(m => new StockMovementDto(
-                m.Id, m.ProductId, p.Name, m.Type, m.Quantity, m.Note, m.CreatedAt,
+                m.Id, m.ProductId, p.Name, p.IsActive, m.Type, m.Quantity, m.Note, m.CreatedAt,
                 m.CreatedByUserId,
                 names.TryGetValue(m.CreatedByUserId, out var fullName) ? fullName : string.Empty))
             .ToList();
@@ -167,7 +167,7 @@ public sealed class ProductService : IProductService
         return new ProductDetailDto(
             p.Id, p.Name, p.SKU, p.CategoryId, p.CategoryName, p.SupplierId, p.SupplierName,
             p.UnitPrice, p.StockQuantity, p.MinStockLevel, p.StockValue, p.IsActive,
-            p.RowVersion, p.CreatedAt, p.UpdatedAt, p.Description, movements);
+            p.DeactivatedAt, p.RowVersion, p.CreatedAt, p.UpdatedAt, p.Description, movements);
     }
 
     public async Task<ProductListDto> CreateAsync(CreateProductRequest request, string userId, CancellationToken ct)

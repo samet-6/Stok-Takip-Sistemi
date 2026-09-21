@@ -7,6 +7,7 @@ public sealed record SupplierDto(
     string? Phone,
     string? Address,
     bool IsActive,
+    DateTime? DeactivatedAt,
     int ProductCount,
     DateTime CreatedAt,
     DateTime UpdatedAt);

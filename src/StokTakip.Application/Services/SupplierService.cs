@@ -20,7 +20,7 @@ public sealed class SupplierService : ISupplierService
     /// </summary>
     private static readonly Expression<Func<Supplier, SupplierDto>> ToDto =
         s => new SupplierDto(
-            s.Id, s.Name, s.ContactEmail, s.Phone, s.Address, s.IsActive,
+            s.Id, s.Name, s.ContactEmail, s.Phone, s.Address, s.IsActive, s.DeactivatedAt,
             s.Products.Count, s.CreatedAt, s.UpdatedAt);
 
     public async Task<IReadOnlyList<SupplierDto>> GetAllAsync(CancellationToken ct)

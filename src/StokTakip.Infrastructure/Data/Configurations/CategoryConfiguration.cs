@@ -13,6 +13,7 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(c => c.Name).HasMaxLength(100).IsRequired()
             .UseCollation(PostgresText.TurkishCollation);
         builder.Property(c => c.Description).HasMaxLength(500);
+        builder.Property(c => c.IsActive).HasDefaultValue(true);
 
         builder.HasIndex(c => c.Name).IsUnique().HasDatabaseName("UQ_Categories_Name");
 

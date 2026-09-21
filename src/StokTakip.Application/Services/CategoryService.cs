@@ -20,7 +20,8 @@ public sealed class CategoryService : ICategoryService
     /// </summary>
     private static readonly Expression<Func<Category, CategoryDto>> ToDto =
         c => new CategoryDto(
-            c.Id, c.Name, c.Description, c.Products.Count, c.CreatedAt, c.UpdatedAt);
+            c.Id, c.Name, c.Description, c.IsActive, c.DeactivatedAt,
+            c.Products.Count, c.CreatedAt, c.UpdatedAt);
 
     public async Task<IReadOnlyList<CategoryDto>> GetAllAsync(CancellationToken ct)
         => await _db.Categories
@@ -45,10 +46,12 @@ public sealed class CategoryService : ICategoryService
         if (await _db.Categories.AnyAsync(c => c.Name == request.Name, ct))
             throw new ConflictException("Bu kategori adı zaten kayıtlı");
 
+        // Born active, like suppliers: switching one off is a separate, deliberate edit.
         var category = new Category
         {
             Name = request.Name,
-            Description = request.Description
+            Description = request.Description,
+            IsActive = true
         };
 
         _db.Categories.Add(category);
@@ -70,6 +73,7 @@ public sealed class CategoryService : ICategoryService
 
         category.Name = request.Name;
         category.Description = request.Description;
+        category.IsActive = request.IsActive;
         await _db.SaveChangesAsync(ct);
     }
 
