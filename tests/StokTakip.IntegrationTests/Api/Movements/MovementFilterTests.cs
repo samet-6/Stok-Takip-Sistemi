@@ -188,9 +188,90 @@ public sealed class MovementFilterTests : IAsyncLifetime
             second.Items.Select(m => m.Id).OrderBy(id => id));
     }
 
+    /// <summary>
+    /// `page` below one is clamped to the first page instead of reaching the database as a
+    /// negative OFFSET. The pager never produces such a value — it only ever counts from one —
+    /// so the guard exists for hand-written query strings, and until now nothing had sent one.
+    /// </summary>
+    [Fact]
+    public async Task Page_birden_kucukse_ilk_sayfaya_kilitleniyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateOnSeedCatalogAsync(admin, "FILT-08");
+        await MovementScratch.AddMovementAsync(admin, product.Id, "In", 5, Ct);
+
+        var first = await GetAsync(admin, $"productId={product.Id}&page=1&pageSize=100");
+
+        foreach (var page in new[] { "0", "-5" })
+        {
+            var clamped = await GetAsync(admin, $"productId={product.Id}&page={page}&pageSize=100");
+
+            // Both halves matter: the echoed page number proves the clamp, and the identical item
+            // set proves the clamp landed on page one rather than silently emptying the result.
+            Assert.Equal(1, clamped.Page);
+            Assert.Equal(first.Items.Select(m => m.Id), clamped.Items.Select(m => m.Id));
+        }
+    }
+
+    /// <summary>
+    /// The 'Z' form of a boundary. The frontend sends offset-aware values (covered above), so this
+    /// arm belongs to anything hand-written — a curl call, a saved link, a future client. Asserting
+    /// both sides of the instant is what makes it a boundary test: "found" alone would also pass on
+    /// a server that ignored `from` entirely.
+    /// </summary>
+    [Fact]
+    public async Task Tarih_siniri_Z_ile_gonderildiginde_UTC_olarak_okunuyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateOnSeedCatalogAsync(admin, "FILT-09");
+        var movement = await MovementScratch.AddMovementAsync(admin, product.Id, "In", 3, Ct);
+        var createdAt = DateTime.SpecifyKind(movement.Movement.CreatedAt, DateTimeKind.Utc);
+
+        var before = await GetAsync(
+            admin, $"productId={product.Id}&from={IsoUtc(createdAt.AddMilliseconds(-1))}&pageSize=100");
+        Assert.Contains(before.Items, m => m.Id == movement.Movement.Id);
+
+        var after = await GetAsync(
+            admin, $"productId={product.Id}&from={IsoUtc(createdAt.AddMilliseconds(1))}&pageSize=100");
+        Assert.DoesNotContain(after.Items, m => m.Id == movement.Movement.Id);
+    }
+
+    /// <summary>
+    /// The offset-less form — the defensive arm: a value with no timezone information at all is
+    /// taken as already-UTC, because Npgsql rejects an Unspecified DateTime against timestamptz
+    /// and a silent local-time reading would shift every boundary by the server's offset.
+    ///
+    /// Note the limit of this test: it can only catch a wrong reading where the process runs at a
+    /// non-zero offset. Under UTC (Docker, CI) local and UTC coincide and both readings agree, so
+    /// a green run there proves the endpoint accepts the form, not that it interprets it.
+    /// </summary>
+    [Fact]
+    public async Task Tarih_siniri_offsetsiz_gonderildiginde_UTC_kabul_ediliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateOnSeedCatalogAsync(admin, "FILT-10");
+        var movement = await MovementScratch.AddMovementAsync(admin, product.Id, "In", 3, Ct);
+        var createdAt = DateTime.SpecifyKind(movement.Movement.CreatedAt, DateTimeKind.Utc);
+
+        var before = await GetAsync(
+            admin, $"productId={product.Id}&from={IsoBare(createdAt.AddMilliseconds(-1))}&pageSize=100");
+        Assert.Contains(before.Items, m => m.Id == movement.Movement.Id);
+
+        var after = await GetAsync(
+            admin, $"productId={product.Id}&from={IsoBare(createdAt.AddMilliseconds(1))}&pageSize=100");
+        Assert.DoesNotContain(after.Items, m => m.Id == movement.Movement.Id);
+    }
+
     /// <summary>Round-trip format keeps the offset, and the '+' has to survive the query string —
     /// unescaped it decodes as a space and the boundary silently becomes offset-less.</summary>
     private static string Iso(DateTimeOffset value) => Uri.EscapeDataString(value.ToString("O"));
+
+    /// <summary>UTC instant with the 'Z' suffix — binds as DateTimeKind.Utc.</summary>
+    private static string IsoUtc(DateTime utc) => Uri.EscapeDataString(utc.ToString("O"));
+
+    /// <summary>The same instant with the suffix stripped — binds as DateTimeKind.Unspecified.</summary>
+    private static string IsoBare(DateTime utc)
+        => Uri.EscapeDataString(utc.ToString("yyyy-MM-ddTHH:mm:ss.fffffff"));
 
     private async Task<MovementScratch.MovementPage> GetAsync(HttpClient client, string query)
         => (await client.GetFromJsonAsync<MovementScratch.MovementPage>(
