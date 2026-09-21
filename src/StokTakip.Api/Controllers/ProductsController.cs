@@ -31,7 +31,7 @@ public sealed class ProductsController : ControllerBase
 
     [Authorize(Roles = "Admin")]
     [HttpPost]
-    public async Task<ActionResult<ProductDetailDto>> Create(CreateProductRequest request, CancellationToken ct)
+    public async Task<ActionResult<ProductListDto>> Create(CreateProductRequest request, CancellationToken ct)
     {
         var userId = User.FindFirstValue("sub");
         if (userId is null)

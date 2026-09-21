@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using StokTakip.Application.Common;
 using StokTakip.Application.Common.Exceptions;
@@ -12,13 +13,21 @@ public sealed class SupplierService : ISupplierService
 
     public SupplierService(IAppDbContext db) => _db = db;
 
+    /// <summary>
+    /// The one definition of what a SupplierDto is — see the note on CategoryService.ToDto.
+    /// Contact fields are redacted per role by the controller, not here: this shape is what the
+    /// database returns, and hiding a field is an authorization decision, not a mapping one.
+    /// </summary>
+    private static readonly Expression<Func<Supplier, SupplierDto>> ToDto =
+        s => new SupplierDto(
+            s.Id, s.Name, s.ContactEmail, s.Phone, s.Address, s.IsActive,
+            s.Products.Count, s.CreatedAt, s.UpdatedAt);
+
     public async Task<IReadOnlyList<SupplierDto>> GetAllAsync(CancellationToken ct)
         => await _db.Suppliers
             .AsNoTracking()
             .OrderBy(s => s.Name)
-            .Select(s => new SupplierDto(
-                s.Id, s.Name, s.ContactEmail, s.Phone, s.Address, s.IsActive,
-                s.Products.Count, s.CreatedAt, s.UpdatedAt))
+            .Select(ToDto)
             .ToListAsync(ct);
 
     public async Task<SupplierDto?> GetByIdAsync(int id, CancellationToken ct)
@@ -26,9 +35,7 @@ public sealed class SupplierService : ISupplierService
         var dto = await _db.Suppliers
             .AsNoTracking()
             .Where(s => s.Id == id)
-            .Select(s => new SupplierDto(
-                s.Id, s.Name, s.ContactEmail, s.Phone, s.Address, s.IsActive,
-                s.Products.Count, s.CreatedAt, s.UpdatedAt))
+            .Select(ToDto)
             .FirstOrDefaultAsync(ct);
 
         return dto ?? throw new NotFoundException("Tedarikçi bulunamadı");
@@ -51,12 +58,13 @@ public sealed class SupplierService : ISupplierService
         _db.Suppliers.Add(supplier);
         await _db.SaveChangesAsync(ct);
 
-        return new SupplierDto(
-            supplier.Id, supplier.Name, supplier.ContactEmail, supplier.Phone, supplier.Address,
-            supplier.IsActive, 0, supplier.CreatedAt, supplier.UpdatedAt);
+        // Read back through the one projection instead of assembling a second DTO by hand
+        // (the pattern ProductService already uses). Hand-assembly had to invent ProductCount —
+        // a literal 0 that is true only because a supplier cannot be born with products.
+        return (await GetByIdAsync(supplier.Id, ct))!;
     }
 
-    public async Task<SupplierDto> UpdateAsync(int id, UpdateSupplierRequest request, CancellationToken ct)
+    public async Task UpdateAsync(int id, UpdateSupplierRequest request, CancellationToken ct)
     {
         var supplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct)
             ?? throw new NotFoundException("Tedarikçi bulunamadı");
@@ -70,11 +78,6 @@ public sealed class SupplierService : ISupplierService
         supplier.Address = request.Address;
         supplier.IsActive = request.IsActive;
         await _db.SaveChangesAsync(ct);
-
-        var productCount = await _db.Products.CountAsync(p => p.SupplierId == id, ct);
-        return new SupplierDto(
-            supplier.Id, supplier.Name, supplier.ContactEmail, supplier.Phone, supplier.Address,
-            supplier.IsActive, productCount, supplier.CreatedAt, supplier.UpdatedAt);
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct)

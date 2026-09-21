@@ -132,8 +132,11 @@ internal static class TestScratch
     }
 
     /// <summary>
-    /// The fields the product tests assert on. A local shape rather than the application's DTO,
-    /// so a renamed JSON field breaks the test instead of moving on both sides at once.
+    /// The list row the product tests assert on — the shape both POST /products and the list
+    /// endpoint answer with. A local shape rather than the application's DTO, so a renamed JSON
+    /// field breaks the test instead of moving on both sides at once. Detail-only fields belong
+    /// to whichever test reads the detail endpoint: a field the answer does not carry would
+    /// deserialise to its default here and assert nothing.
     /// </summary>
     internal sealed record Product(
         int Id,
@@ -144,7 +147,6 @@ internal static class TestScratch
         decimal UnitPrice,
         int StockQuantity,
         int MinStockLevel,
-        decimal StockValue,
         bool IsActive,
         uint RowVersion);
 

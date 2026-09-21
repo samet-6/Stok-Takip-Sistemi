@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using StokTakip.Application.Common;
 using StokTakip.Application.Common.Exceptions;
@@ -15,6 +16,17 @@ public sealed class ProductService : IProductService
     private readonly IAppDbContext _db;
     private readonly IUserLookupService _userLookup;
     private readonly IRealtimeNotifier _realtime;
+
+    /// <summary>
+    /// The one definition of what a ProductListDto is. Both the paged list and the soft-delete
+    /// response read through it, so the two can never drift into showing different shapes of the
+    /// same row — and a new field is added here once.
+    /// </summary>
+    private static readonly Expression<Func<Product, ProductListDto>> ToListDto =
+        p => new ProductListDto(
+            p.Id, p.Name, p.SKU, p.CategoryId, p.Category.Name, p.SupplierId, p.Supplier.Name,
+            p.UnitPrice, p.StockQuantity, p.MinStockLevel, p.IsActive,
+            p.RowVersion, p.CreatedAt, p.UpdatedAt);
 
     public ProductService(
         IAppDbContext db, IUserLookupService userLookup, IRealtimeNotifier realtime)
@@ -69,10 +81,7 @@ public sealed class ProductService : IProductService
             .ThenBy(p => p.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(p => new ProductListDto(
-                p.Id, p.Name, p.SKU, p.CategoryId, p.Category.Name, p.SupplierId, p.Supplier.Name,
-                p.UnitPrice, p.StockQuantity, p.MinStockLevel, p.IsActive,
-                EF.Property<uint>(p, "xmin"), p.CreatedAt, p.UpdatedAt))
+            .Select(ToListDto)
             .ToListAsync(ct);
 
         return new PagedResult<ProductListDto>(items, page, pageSize, totalCount);
@@ -128,7 +137,7 @@ public sealed class ProductService : IProductService
                 SupplierName = x.Supplier.Name,
                 x.UnitPrice, x.StockQuantity, x.MinStockLevel, x.IsActive,
                 StockValue = x.UnitPrice * x.StockQuantity,
-                RowVersion = EF.Property<uint>(x, "xmin"),
+                x.RowVersion,
                 x.CreatedAt, x.UpdatedAt, x.Description,
                 Movements = x.Movements
                     .OrderByDescending(m => m.CreatedAt)
@@ -161,7 +170,7 @@ public sealed class ProductService : IProductService
             p.RowVersion, p.CreatedAt, p.UpdatedAt, p.Description, movements);
     }
 
-    public async Task<ProductDetailDto> CreateAsync(CreateProductRequest request, string userId, CancellationToken ct)
+    public async Task<ProductListDto> CreateAsync(CreateProductRequest request, string userId, CancellationToken ct)
     {
         var sku = request.SKU.Trim().ToUpperInvariant();
 
@@ -208,10 +217,17 @@ public sealed class ProductService : IProductService
         // tiles, and an initial stock movement changes them again.
         _realtime.NotifyProductChanged(product.Id);
 
-        return (await GetByIdAsync(product.Id, ct))!;
+        // Read back through the shared projection rather than hand-building a second copy of the
+        // list row: category and supplier names come from the same join the list uses, so the
+        // creation answer can never drift from what the list shows.
+        return await _db.Products
+            .AsNoTracking()
+            .Where(p => p.Id == product.Id)
+            .Select(ToListDto)
+            .FirstAsync(ct);
     }
 
-    public async Task<ProductDetailDto> UpdateAsync(int id, UpdateProductRequest request, CancellationToken ct)
+    public async Task UpdateAsync(int id, UpdateProductRequest request, CancellationToken ct)
     {
         var product = await _db.Products.FirstOrDefaultAsync(p => p.Id == id, ct)
             ?? throw new NotFoundException("Ürün bulunamadı");
@@ -241,7 +257,7 @@ public sealed class ProductService : IProductService
 
         // Optimistic concurrency: a stale RowVersion makes the UPDATE match 0 rows,
         // raising DbUpdateConcurrencyException (→ 409).
-        _db.Entry(product).Property("xmin").OriginalValue = request.RowVersion;
+        _db.Entry(product).Property(p => p.RowVersion).OriginalValue = request.RowVersion;
 
         var written = await _db.SaveChangesAsync(ct);
 
@@ -251,8 +267,6 @@ public sealed class ProductService : IProductService
         // Broadcasting on the latter would have every open screen refetch identical data.
         if (written > 0)
             _realtime.NotifyProductChanged(id);
-
-        return (await GetByIdAsync(id, ct))!;
     }
 
     public async Task<ProductListDto?> DeleteAsync(int id, CancellationToken ct)
@@ -290,10 +304,7 @@ public sealed class ProductService : IProductService
         return await _db.Products
             .AsNoTracking()
             .Where(p => p.Id == id)
-            .Select(p => new ProductListDto(
-                p.Id, p.Name, p.SKU, p.CategoryId, p.Category.Name, p.SupplierId, p.Supplier.Name,
-                p.UnitPrice, p.StockQuantity, p.MinStockLevel, p.IsActive,
-                EF.Property<uint>(p, "xmin"), p.CreatedAt, p.UpdatedAt))
+            .Select(ToListDto)
             .FirstAsync(ct);
     }
 

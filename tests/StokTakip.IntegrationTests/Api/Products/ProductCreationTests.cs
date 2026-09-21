@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -121,6 +122,36 @@ public sealed class ProductCreationTests : IAsyncLifetime
         Assert.Equal(Domain.Enums.StockMovementType.In, movement.Type);
         Assert.Equal(25, movement.Quantity);
         Assert.Equal("Başlangıç stoğu", movement.Note);
+    }
+
+    /// <summary>
+    /// The creation response is list-shaped: the client puts the new row into the list it is
+    /// already looking at, and asks GET /products/{id} when it wants the detail. Built with an
+    /// opening stock on purpose — that movement is exactly what a detail-shaped answer would
+    /// carry, so the assertion has something real to catch.
+    /// </summary>
+    [Fact]
+    public async Task Create_yaniti_liste_seklinde_detay_alanlari_tasimiyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var (categoryId, supplierId) = await TestScratch.SeedCatalogAsync(_db, Ct);
+
+        var response = await TestScratch.PostProductAsync(
+            admin, "SHAPE-01", categoryId, supplierId, Ct, initialStock: 5);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var root = body.RootElement;
+
+        // Still the joined list row, not a bare entity.
+        Assert.True(root.TryGetProperty("categoryName", out _));
+        Assert.True(root.TryGetProperty("supplierName", out _));
+        Assert.True(root.TryGetProperty("rowVersion", out _));
+
+        // The detail-only fields, and with them the movements query and the user-name lookup.
+        Assert.False(root.TryGetProperty("recentMovements", out _));
+        Assert.False(root.TryGetProperty("stockValue", out _));
     }
 
     [Fact]

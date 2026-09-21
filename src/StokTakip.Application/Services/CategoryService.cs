@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using StokTakip.Application.Categories;
 using StokTakip.Application.Common;
@@ -12,12 +13,20 @@ public sealed class CategoryService : ICategoryService
 
     public CategoryService(IAppDbContext db) => _db = db;
 
+    /// <summary>
+    /// The one definition of what a CategoryDto is. Every read goes through it, so a new field
+    /// is added here once instead of in each query — and ProductCount is always counted the same
+    /// way (in SQL, over the live rows) rather than passed in by whoever happens to build the DTO.
+    /// </summary>
+    private static readonly Expression<Func<Category, CategoryDto>> ToDto =
+        c => new CategoryDto(
+            c.Id, c.Name, c.Description, c.Products.Count, c.CreatedAt, c.UpdatedAt);
+
     public async Task<IReadOnlyList<CategoryDto>> GetAllAsync(CancellationToken ct)
         => await _db.Categories
             .AsNoTracking()
             .OrderBy(c => c.Name)
-            .Select(c => new CategoryDto(
-                c.Id, c.Name, c.Description, c.Products.Count, c.CreatedAt, c.UpdatedAt))
+            .Select(ToDto)
             .ToListAsync(ct);
 
     public async Task<CategoryDto?> GetByIdAsync(int id, CancellationToken ct)
@@ -25,8 +34,7 @@ public sealed class CategoryService : ICategoryService
         var dto = await _db.Categories
             .AsNoTracking()
             .Where(c => c.Id == id)
-            .Select(c => new CategoryDto(
-                c.Id, c.Name, c.Description, c.Products.Count, c.CreatedAt, c.UpdatedAt))
+            .Select(ToDto)
             .FirstOrDefaultAsync(ct);
 
         return dto ?? throw new NotFoundException("Kategori bulunamadı");
@@ -46,12 +54,13 @@ public sealed class CategoryService : ICategoryService
         _db.Categories.Add(category);
         await _db.SaveChangesAsync(ct);
 
-        return new CategoryDto(
-            category.Id, category.Name, category.Description, 0,
-            category.CreatedAt, category.UpdatedAt);
+        // Read back through the one projection instead of assembling a second DTO by hand
+        // (the pattern ProductService already uses). Hand-assembly had to invent ProductCount —
+        // a literal 0 that is true only because a category cannot be born with products.
+        return (await GetByIdAsync(category.Id, ct))!;
     }
 
-    public async Task<CategoryDto> UpdateAsync(int id, UpdateCategoryRequest request, CancellationToken ct)
+    public async Task UpdateAsync(int id, UpdateCategoryRequest request, CancellationToken ct)
     {
         var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id, ct)
             ?? throw new NotFoundException("Kategori bulunamadı");
@@ -62,11 +71,6 @@ public sealed class CategoryService : ICategoryService
         category.Name = request.Name;
         category.Description = request.Description;
         await _db.SaveChangesAsync(ct);
-
-        var productCount = await _db.Products.CountAsync(p => p.CategoryId == id, ct);
-        return new CategoryDto(
-            category.Id, category.Name, category.Description, productCount,
-            category.CreatedAt, category.UpdatedAt);
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct)

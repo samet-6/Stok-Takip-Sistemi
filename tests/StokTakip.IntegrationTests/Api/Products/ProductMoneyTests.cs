@@ -89,7 +89,7 @@ public sealed class ProductMoneyTests : IAsyncLifetime
 
         // The single row agrees with the total to the kuruş — StockValue is multiplied by the
         // database too, so the detail page and the dashboard cannot drift apart.
-        var detail = await admin.GetFromJsonAsync<TestScratch.Product>(
+        var detail = await admin.GetFromJsonAsync<Detail>(
             $"/api/products/{await IdOfAsync("BIG-01")}", Ct);
         Assert.Equal(9_999_999_000.00m, detail!.StockValue);
     }
@@ -114,4 +114,7 @@ public sealed class ProductMoneyTests : IAsyncLifetime
     };
 
     private sealed record Summary(int TotalProducts, decimal TotalStockValue);
+
+    /// <summary>StockValue is detail-only — the list row (TestScratch.Product) never carries it.</summary>
+    private sealed record Detail(decimal StockValue);
 }
