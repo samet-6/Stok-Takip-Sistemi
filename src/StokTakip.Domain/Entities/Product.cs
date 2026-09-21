@@ -17,6 +17,13 @@ public class Product : IAuditable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>
+    /// Optimistic concurrency token. Mapped onto PostgreSQL's own <c>xmin</c> system column in
+    /// Infrastructure — the database bumps it on every UPDATE, so nothing here assigns it.
+    /// A plain uint rather than an attribute: the persistence detail stays in the configuration.
+    /// </summary>
+    public uint RowVersion { get; set; }
+
     public Category Category { get; set; } = null!;
     public Supplier Supplier { get; set; } = null!;
     public ICollection<StockMovement> Movements { get; set; } = new List<StockMovement>();

@@ -23,12 +23,15 @@ public sealed class ModelTests
     {
         using var db = _db.CreateContext();
 
-        var xmin = db.Model.FindEntityType(typeof(Product))!.FindProperty("xmin");
+        var xmin = db.Model.FindEntityType(typeof(Product))!.FindProperty(nameof(Product.RowVersion));
 
         Assert.NotNull(xmin);
         Assert.True(xmin.IsConcurrencyToken);
         // The database bumps it on every UPDATE; EF must never try to write it.
         Assert.Equal(ValueGenerated.OnAddOrUpdate, xmin.ValueGenerated);
+        // The property is the entity's own now, but the column it reads is still PostgreSQL's
+        // system column — that mapping is what keeps the migration from creating a real one.
+        Assert.Equal("xmin", xmin.GetColumnName());
     }
 
     [Fact]

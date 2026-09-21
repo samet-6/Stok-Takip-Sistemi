@@ -45,9 +45,13 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasOperators(PostgresText.TrigramOperators);
 
         // Optimistic concurrency via PostgreSQL's system column "xmin": a uint concurrency
-        // token that Postgres itself bumps on every UPDATE. The Npgsql convention maps this
-        // shadow property onto the system column, so the migration creates no real column.
-        builder.Property<uint>("xmin")
+        // token that Postgres itself bumps on every UPDATE. Mapped onto the entity's own
+        // RowVersion property (the form the Npgsql documentation shows) rather than a shadow
+        // property, so projections read p.RowVersion instead of EF.Property<uint>(p, "xmin").
+        // The column name is what keeps the migration from creating a real column — Npgsql
+        // recognises "xmin" as a system column.
+        builder.Property(p => p.RowVersion)
+            .HasColumnName("xmin")
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
