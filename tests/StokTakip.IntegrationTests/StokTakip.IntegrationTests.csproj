@@ -26,4 +26,12 @@
     <ProjectReference Include="..\..\src\StokTakip.Infrastructure\StokTakip.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Shared with the Vitest suite, which reads the same file from the repository. Copied rather
+       than embedded so the two suites keep pointing at one file instead of two snapshots. -->
+  <ItemGroup>
+    <Content Include="..\fixtures\password-vectors.json"
+             Link="fixtures\password-vectors.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

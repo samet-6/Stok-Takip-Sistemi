@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using StokTakip.Infrastructure.Identity;
 using Xunit;
 
 namespace StokTakip.IntegrationTests.Api;
@@ -114,6 +115,36 @@ public sealed class UserManagementTests : IAsyncLifetime
             Ct);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    /// <summary>
+    /// The 400 body carries the whole policy, generated from PasswordPolicy — not a sentence
+    /// typed next to the throw, and not Identity's per-rule description either. Asserting the
+    /// exact string is the point: a hand-written copy would sail through a "contains 'şifre'"
+    /// test and still age behind the numbers, which is how four copies of this sentence came to
+    /// exist. Also the guard for removing TurkishIdentityErrorDescriber: if deleting the class
+    /// changed what the user sees, this goes red.
+    /// </summary>
+    [Fact]
+    public async Task Zayif_sifre_hatasi_politika_metninin_kendisini_donuyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var email = $"t3-{Guid.NewGuid():N}@stok.local";
+
+        var response = await admin.PostAsJsonAsync(
+            "/api/users", new { fullName = "Zayıf", email, password = "1234" }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var messages = document.RootElement
+            .GetProperty("errors")
+            .GetProperty("password")
+            .EnumerateArray()
+            .Select(m => m.GetString())
+            .ToList();
+
+        Assert.Equal([PasswordPolicy.Message], messages);
     }
 
     [Fact]

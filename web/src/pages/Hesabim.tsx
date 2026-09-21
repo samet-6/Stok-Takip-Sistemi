@@ -10,23 +10,17 @@ import { useAuthStore } from '../stores/authStore'
 import { useToast } from '../components/toastContext'
 import { MovementsTable } from '../components/MovementsTable'
 import { Pager } from '../components/Pager'
+import { passwordRules } from '../lib/schemas'
 import { PageHeader } from '../components/PageHeader'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { applyServerFieldErrors } from '../lib/formErrors'
 
-// New-password policy mirror (backend is the source of truth; this is for instant UX).
-const newPasswordRules = z
-  .string()
-  .min(8, 'Şifre en az 8 karakter olmalı')
-  .regex(/[a-z]/, 'En az bir küçük harf içermeli')
-  .regex(/[A-Z]/, 'En az bir büyük harf içermeli')
-  .regex(/\d/, 'En az bir rakam içermeli')
-  .regex(/[^A-Za-z0-9]/, 'En az bir özel karakter içermeli')
-
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Bu alan zorunludur'),
-    newPassword: newPasswordRules,
+    // One client-side copy of the policy, shared with the user form — this page used to restate
+    // the same five rules, so raising the length would have aged one of the two silently.
+    newPassword: passwordRules,
     confirmPassword: z.string().min(1, 'Bu alan zorunludur'),
   })
   .refine((v) => v.newPassword !== v.currentPassword, {

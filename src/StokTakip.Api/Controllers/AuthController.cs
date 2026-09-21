@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using StokTakip.Application.Auth;
 using StokTakip.Infrastructure.Auth;
 
@@ -20,6 +21,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(LoginRateLimit.PolicyName)]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken ct)
         => Ok(await _authService.LoginAsync(request, ct));

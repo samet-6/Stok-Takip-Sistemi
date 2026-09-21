@@ -16,11 +16,47 @@ public sealed class AuthService : IAuthService
         _tokenService = tokenService;
     }
 
+    /// <summary>
+    /// The lockout is driven through UserManager rather than SignInManager, which lives in the
+    /// ASP.NET Core shared framework: using it here would mean giving this class library the
+    /// whole web stack, and SignInManager belongs at the web edge anyway. These calls are what
+    /// CheckPasswordSignInAsync does internally, minus the cookie and two-factor work — and the
+    /// two-factor part would not have helped: its flow is built on an intermediate cookie this
+    /// JWT application does not have.
+    /// </summary>
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
-        if (user is null || !await _userManager.CheckPasswordAsync(user, request.Password))
+        if (user is null)
             throw new UnauthorizedException("E-posta veya şifre hatalı");
+
+        if (await _userManager.IsLockedOutAsync(user))
+            throw new LockedOutException(LockoutPolicy.Message);
+
+        if (!await _userManager.CheckPasswordAsync(user, request.Password))
+        {
+            // CheckPasswordAsync only compares a hash: it moves no counter and reads no
+            // LockoutEnd. Everything that makes the lockout real happens on this line — without
+            // it the configured Lockout options were documentation, not a defence.
+            await _userManager.AccessFailedAsync(user);
+
+            // The attempt that reaches the limit is itself refused as locked, so the user is told
+            // to wait instead of being invited to guess once more.
+            if (await _userManager.IsLockedOutAsync(user))
+                throw new LockedOutException(LockoutPolicy.Message);
+
+            throw new UnauthorizedException("E-posta veya şifre hatalı");
+        }
+
+        // Near-misses spread over a working day must not add up to a lockout nobody can explain.
+        // Guarded because the reset is a database write and most logins have nothing to reset.
+        //
+        // NOTE — if two-factor authentication is added, this moves: with a second factor the
+        // sign-in is not complete here, so the counter must only be cleared after the code is
+        // verified, and a wrong code must call AccessFailedAsync as well. Otherwise the lockout
+        // would guard the password and leave the code unprotected.
+        if (await _userManager.GetAccessFailedCountAsync(user) > 0)
+            await _userManager.ResetAccessFailedCountAsync(user);
 
         // Soft-deleted (deactivated) users cannot log in; audit trail is preserved.
         if (!user.IsActive)

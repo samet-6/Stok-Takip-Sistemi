@@ -29,7 +29,10 @@ export type ProductFormValues = z.infer<typeof productSchema>
 
 // Password policy mirror (backend is the source of truth; this is for instant UX).
 // On edit the field is optional: empty = unchanged, otherwise must satisfy the policy.
-const passwordRules = z
+// Exported because this is the project's only client-side copy of the rule: the change-password
+// form reads it from here rather than restating it, and tests/fixtures/password-vectors.json
+// pins it to the backend's Identity options.
+export const passwordRules = z
   .string()
   .min(8, 'Şifre en az 8 karakter olmalı')
   .regex(/[a-z]/, 'En az bir küçük harf içermeli')

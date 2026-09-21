@@ -30,6 +30,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             ConflictException => (StatusCodes.Status409Conflict, exception.Message, "conflict"),
             NotFoundException => (StatusCodes.Status404NotFound, exception.Message, "not_found"),
             BadRequestException => (StatusCodes.Status400BadRequest, exception.Message, "bad_request"),
+            // Still 401 — the request is unauthenticated either way — but with its own code, so
+            // the login screen can say "wait" instead of "try again". Must precede nothing in
+            // particular; it is a sibling of UnauthorizedException, not a subtype.
+            LockedOutException => (StatusCodes.Status401Unauthorized, exception.Message, "account_locked"),
             UnauthorizedException => (StatusCodes.Status401Unauthorized, exception.Message, "unauthorized"),
             // Optimistic concurrency (stale xmin) — must precede the generic DbUpdateException arm.
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Çakışma", "concurrency_conflict"),

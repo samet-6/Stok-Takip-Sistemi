@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -31,18 +32,38 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
-builder.Services.AddIdentityCore<ApplicationUser>(options =>
-{
-    // Password policy — mirrored by the frontend zod schemas for instant UX.
-    options.Password.RequiredLength = 8;
-    options.Password.RequireUppercase = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireDigit = true;
-    options.Password.RequireNonAlphanumeric = true;
-})
+builder.Services.AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole>()
-    .AddErrorDescriber<TurkishIdentityErrorDescriber>()
     .AddEntityFrameworkStores<AppDbContext>();
+
+// The password rules themselves live with the rules (PasswordPolicy), not here: wiring is this
+// file's job, and a rule nothing else can read is a rule that gets copied by hand.
+builder.Services.ConfigureOptions<IdentityOptionsSetup>();
+
+// Rate limiting on the login endpoint. The lockout stops an account from being guessed; this
+// stops the server from paying for the guessing — every attempt costs a query and a password
+// hash verification, locked or not. Partitioned by caller address: one noisy client must not
+// spend everybody else's budget.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(LoginRateLimit.PolicyName, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = LoginRateLimit.PermitLimit,
+                Window = LoginRateLimit.Window,
+                // No queue: a login is worth answering now or refusing now. Queuing would hold
+                // connections open and turn the limit into latency instead of a refusal.
+                QueueLimit = 0
+            }));
+});
+
+// The integration suite turns this off (StokTakipFactory): every test class logs in, repeatedly,
+// from one client, and enforcement would cut unrelated tests at random. LoginRateLimitTests
+// builds its own host with it back on.
+var rateLimitingEnabled = builder.Configuration.GetValue("RateLimiting:Enabled", true);
 
 // Auth
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
@@ -219,6 +240,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
+
+// Before authentication: a refused request should not cost a token validation or a DB round trip.
+if (rateLimitingEnabled)
+    app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

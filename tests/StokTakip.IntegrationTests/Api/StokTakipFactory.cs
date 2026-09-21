@@ -50,6 +50,11 @@ public sealed class StokTakipFactory : WebApplicationFactory<Program>
 
         // Almost every test leans on the demo catalogue, so the suite asks for it explicitly
         // rather than relying on "Testing is not Production".
+        // Every class here logs in, repeatedly, from a single client, so an enforced login limit
+        // would cut unrelated tests at random. LoginRateLimitTests builds its own host with it
+        // switched back on — that is the only place where the limiter is actually exercised.
+        SetVariable("RateLimiting__Enabled", "false");
+
         SetVariable("Seed__Demo", "true");
         SetVariable("Seed__AdminPassword", AdminPassword);
         SetVariable("Seed__UserPassword", UserPassword);
