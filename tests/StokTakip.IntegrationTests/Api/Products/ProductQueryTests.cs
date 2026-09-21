@@ -88,6 +88,32 @@ public sealed class ProductQueryTests : IAsyncLifetime
         Assert.DoesNotContain(page.Items, r => r.Id == healthy.Id);
     }
 
+    /// <summary>
+    /// "Low" means active. A passive product cannot take movements at all, so running out is not
+    /// something that can happen to it — counting it would keep the warning permanently lit.
+    /// Asking for both switches at once is the case that exposed the disagreement: the list
+    /// listed passives the summary tile refused to count, so the page could say 5 and 3 at once.
+    /// </summary>
+    [Fact]
+    public async Task LowStockOnly_pasif_urunu_getirmiyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var categoryId = await TestScratch.CreateCategoryAsync(admin, "KategoriEsikPasif", Ct);
+        var (_, supplierId) = await TestScratch.SeedCatalogAsync(_db, Ct);
+
+        var active = await TestScratch.CreateProductAsync(
+            admin, "LOWP-01", categoryId, supplierId, Ct, minStockLevel: 5, initialStock: 5);
+        var passive = await TestScratch.CreateProductAsync(
+            admin, "LOWP-02", categoryId, supplierId, Ct, minStockLevel: 5, initialStock: 5);
+        await DeactivateAsync(admin, passive);
+
+        var page = await GetAsync(
+            admin, $"categoryId={categoryId}&lowStockOnly=true&includeInactive=true&pageSize=100");
+
+        Assert.Equal(active.Id, Assert.Single(page.Items).Id);
+        Assert.DoesNotContain(page.Items, r => r.Id == passive.Id);
+    }
+
     [Fact]
     public async Task IncludeInactive_pasif_urunleri_ancak_istenince_getiriyor()
     {

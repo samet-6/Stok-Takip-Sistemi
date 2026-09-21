@@ -161,6 +161,33 @@ public sealed class ProductSummaryTests : IAsyncLifetime
         Assert.NotEqual(summary.TotalProducts, activeOnly!.TotalCount);
     }
 
+    /// <summary>
+    /// The warning tile and the "only low stock" filter answer the same question, so they must
+    /// return the same number — including for a product sitting exactly on its minimum and a
+    /// passive one, the two rows where the old copies disagreed. Both now read LowStockRule;
+    /// this test is what makes re-inlining a second copy of the predicate go red.
+    /// </summary>
+    [Fact]
+    public async Task Ozet_dusuk_sayisi_liste_filtresiyle_birebir_ayni()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var categoryId = await TestScratch.CreateCategoryAsync(admin, "KategoriBekci", Ct);
+
+        await InsertAsync(categoryId, [
+            new Row("GRD-01", 1m, 4, 5, true),     // under the minimum
+            new Row("GRD-02", 1m, 5, 5, true),     // exactly on it
+            new Row("GRD-03", 1m, 50, 5, true),    // healthy
+            new Row("GRD-04", 1m, 0, 5, false)     // passive and empty
+        ]);
+
+        var summary = await SummaryAsync(admin, $"categoryId={categoryId}");
+        var listed = await admin.GetFromJsonAsync<ProductPage>(
+            $"/api/products?categoryId={categoryId}&lowStockOnly=true&includeInactive=true&pageSize=100", Ct);
+
+        Assert.Equal(2, summary.LowStockCount);
+        Assert.Equal(summary.LowStockCount, listed!.TotalCount);
+    }
+
     private static async Task<Summary> SummaryAsync(HttpClient admin, string query) =>
         (await admin.GetFromJsonAsync<Summary>($"/api/products/summary?{query}", Ct))!;
 

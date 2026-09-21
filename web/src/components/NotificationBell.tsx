@@ -22,8 +22,11 @@ function describe(n: NotificationDto): string {
   switch (n.type) {
     case 'OutOfStock':
       return `${n.productName} tükendi (stok 0).`
+    // Not "below the minimum": sitting exactly ON the minimum is low too, and that is the case
+    // the notification now fires for as well — the old wording would have been plainly wrong
+    // there (stok 5, eşik 5, "altına indi").
     case 'LowStock':
-      return `${n.productName} minimum stok seviyesinin altına indi (kalan ${n.quantity}).`
+      return `${n.productName} stoğu düşük (kalan ${n.quantity}).`
     case 'RejectedOutMovement':
       return `${n.createdByFullName} ${n.productName} için ${n.requestedQuantity} çıkış denedi, stok ${n.quantity}.`
   }

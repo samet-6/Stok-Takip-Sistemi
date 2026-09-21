@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using StokTakip.Application.Common;
 using StokTakip.Application.Common.Exceptions;
+using StokTakip.Application.Products;
 using StokTakip.Application.StockMovements;
 using StokTakip.Domain.Entities;
 using StokTakip.Domain.Enums;
@@ -275,10 +276,14 @@ public sealed class StockMovementService : IStockMovementService
         if (previousQuantity > 0 && product.StockQuantity == 0)
             return NotificationType.OutOfStock;
 
-        if (previousQuantity >= product.MinStockLevel && product.StockQuantity < product.MinStockLevel)
-            return NotificationType.LowStock;
+        // The edge of the one shared predicate: it was not low, now it is. Still edge detection
+        // rather than level detection — what changed is only that the edge now belongs to the
+        // same "low" the list filter and the summary tile use. The previous state has no entity
+        // of its own, hence the plain form of the rule.
+        var wasLow = LowStockRule.IsLow(product.IsActive, previousQuantity, product.MinStockLevel);
+        var isLow = LowStockRule.IsLow(product.IsActive, product.StockQuantity, product.MinStockLevel);
 
-        return null;
+        return !wasLow && isLow ? NotificationType.LowStock : null;
     }
 
     /// <summary>Drops a pending insert so an abandoned attempt cannot ride the next SaveChanges.</summary>

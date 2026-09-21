@@ -45,8 +45,11 @@ public sealed class ProductService : IProductService
 
         if (!query.IncludeInactive)
             q = q.Where(p => p.IsActive);
+        // The filter carries the whole rule, IsActive included, so it cannot disagree with the
+        // summary tile next to it: asking for low stock and passives at once used to list rows
+        // the tile refused to count.
         if (query.LowStockOnly)
-            q = q.Where(p => p.StockQuantity <= p.MinStockLevel);
+            q = q.Where(LowStockRule.Predicate);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             // The term is folded by the database (SearchText.Fold -> f_fold), by the very
@@ -98,13 +101,19 @@ public sealed class ProductService : IProductService
         // an OrderBy or a filter next to the First?), not cardinality-aware, so it flagged every
         // summary call as potentially unpredictable. Taking the list keeps the same single-row
         // aggregate without a row-limiting operator to warn about.
-        var rows = await ApplyScope(_db.Products.AsNoTracking(), scope)
+        var scoped = ApplyScope(_db.Products.AsNoTracking(), scope);
+        var rows = await scoped
             .GroupBy(_ => 1)
             .Select(g => new ProductSummaryDto(
                 g.Count(),
                 g.Count(p => p.IsActive),
                 g.Count(p => !p.IsActive),
-                g.Count(p => p.IsActive && p.StockQuantity <= p.MinStockLevel),
+                // Reads the one definition of "low" rather than spelling it out again. It has to
+                // go through the scoped queryable, not the group: IGrouping.Count is
+                // Enumerable.Count and takes a delegate, so an expression cannot reach it
+                // (CS1929) and a compiled one cannot be translated. As a Queryable.Count over the
+                // same scope it lands in the same statement as a scalar subquery.
+                scoped.Count(LowStockRule.Predicate),
                 g.Sum(p => p.IsActive ? p.UnitPrice * p.StockQuantity : 0m)))
             .ToListAsync(ct);
 

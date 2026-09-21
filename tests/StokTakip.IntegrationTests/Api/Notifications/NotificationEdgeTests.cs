@@ -104,6 +104,44 @@ public sealed class NotificationEdgeTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// The gap B27 closed. Landing exactly ON the minimum is "low" everywhere else in the app —
+    /// the list filter shows it, the summary tile counts it — so it has to ring the bell too.
+    /// Before the rule was shared, the bell's copy said "&lt;" while the screen's said "&lt;=",
+    /// and this movement turned the product red without anyone being told.
+    /// </summary>
+    [Fact]
+    public async Task Tam_esige_inen_hareket_LowStock_uretiyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateProductAsync(admin, "NTF-12", stock: 45, minStockLevel: 40);
+
+        await Out(admin, product.Id, 5);   // 45 → 40, exactly on the minimum
+
+        var notification = Assert.Single(await NotificationScratch.ForProductAsync(_db, product.Id, Ct));
+        Assert.Equal(NotificationType.LowStock, notification.Type);
+        Assert.Equal(40, notification.Quantity);
+    }
+
+    /// <summary>
+    /// Moving the boundary must not turn edge detection into level detection: a product already
+    /// sitting on its minimum is already low, so the next movement down is not a crossing and
+    /// rings nothing. Without this, "&lt;=" could be implemented as a level check and the bell
+    /// would fill with copies of the same fact.
+    /// </summary>
+    [Fact]
+    public async Task Esikte_duran_urunden_yeni_cikis_ikinci_bildirim_uretmiyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var product = await CreateProductAsync(admin, "NTF-13", stock: 45, minStockLevel: 40);
+
+        await Out(admin, product.Id, 5);   // 45 → 40, the crossing
+        await Out(admin, product.Id, 1);   // 40 → 39, already low
+
+        var notification = Assert.Single(await NotificationScratch.ForProductAsync(_db, product.Id, Ct));
+        Assert.Equal(40, notification.Quantity);
+    }
+
+    /// <summary>
     /// Zero is also "below minimum", so both rules match at once. OutOfStock wins and is the only
     /// row written: its wording already carries the other one's meaning, and two rows for one event
     /// would read as two problems.

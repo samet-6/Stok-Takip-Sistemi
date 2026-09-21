@@ -20,6 +20,7 @@ import { StatTile } from '../components/StatTile'
 import { formatCurrency } from '../lib/format'
 import { Pager } from '../components/Pager'
 import { canonicalParams } from '../lib/urlParams'
+import { toggleExclusiveFilter } from '../lib/productFilters'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
 const PAGE_SIZE = 10
@@ -73,9 +74,8 @@ export default function Products() {
   }, [search])
 
   // Changing any filter resets to page 1; paging keeps everything else.
-  const setFilter = (mutate: (p: URLSearchParams) => void) => {
-    const next = new URLSearchParams(searchParams)
-    mutate(next)
+  const setFilter = (apply: (p: URLSearchParams) => URLSearchParams) => {
+    const next = apply(new URLSearchParams(searchParams))
     next.set('page', '1')
     setSearchParams(normalizeParams(next))
   }
@@ -174,6 +174,7 @@ export default function Products() {
               setFilter((p) => {
                 if (e.target.value) p.set('categoryId', e.target.value)
                 else p.delete('categoryId')
+                return p
               })
             }
           >
@@ -191,12 +192,12 @@ export default function Products() {
             id="lowStockOnly"
             label="Sadece düşük stok"
             checked={lowStockOnly}
-            onChange={(e) =>
-              setFilter((p) => {
-                if (e.target.checked) p.set('lowStockOnly', 'true')
-                else p.delete('lowStockOnly')
-              })
-            }
+            // The two switches exclude each other: "low stock" already means active products
+            // only, so the passive filter has nothing left to add — and the server would ignore
+            // it anyway. Disabling says that upfront instead of letting the user set a
+            // combination that quietly does nothing.
+            disabled={includeInactive}
+            onChange={(e) => setFilter((p) => toggleExclusiveFilter(p, 'lowStockOnly', e.target.checked))}
           />
         </Col>
         <Col xs="auto">
@@ -205,12 +206,8 @@ export default function Products() {
             id="includeInactive"
             label="Pasifleri göster"
             checked={includeInactive}
-            onChange={(e) =>
-              setFilter((p) => {
-                if (e.target.checked) p.set('includeInactive', 'true')
-                else p.delete('includeInactive')
-              })
-            }
+            disabled={lowStockOnly}
+            onChange={(e) => setFilter((p) => toggleExclusiveFilter(p, 'includeInactive', e.target.checked))}
           />
         </Col>
       </Row>
