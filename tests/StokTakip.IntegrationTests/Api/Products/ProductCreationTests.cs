@@ -154,6 +154,26 @@ public sealed class ProductCreationTests : IAsyncLifetime
         Assert.False(root.TryGetProperty("stockValue", out _));
     }
 
+    /// <summary>
+    /// 0 is a valid threshold ("tell me only when it runs out"), but it is also an int's CLR
+    /// default — the value EF takes to mean "not set" when the column has a store default. The
+    /// admin's 0 must reach the row, not be swapped for the schema's 5 on the way.
+    /// </summary>
+    [Fact]
+    public async Task Sifir_minimum_stok_sifir_olarak_kaydediliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var (categoryId, supplierId) = await TestScratch.SeedCatalogAsync(_db, Ct);
+
+        var created = await TestScratch.CreateProductAsync(
+            admin, "MIN-00", categoryId, supplierId, Ct, minStockLevel: 0);
+
+        Assert.Equal(0, created.MinStockLevel);
+
+        await using var db = _db.CreateContext();
+        Assert.Equal(0, await db.Products.Where(p => p.Id == created.Id).Select(p => p.MinStockLevel).SingleAsync(Ct));
+    }
+
     [Fact]
     public async Task InitialStock_verilmezse_stok_sifir_ve_hic_hareket_yok()
     {

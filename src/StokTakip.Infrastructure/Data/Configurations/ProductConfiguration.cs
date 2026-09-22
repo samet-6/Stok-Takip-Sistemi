@@ -16,7 +16,12 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Description).HasMaxLength(500);
         builder.Property(p => p.UnitPrice).HasPrecision(18, 2);
         builder.Property(p => p.StockQuantity).HasDefaultValue(0);
-        builder.Property(p => p.MinStockLevel).HasDefaultValue(5);
+        // A store default makes EF treat one value as "not set" and leave the column out of the
+        // INSERT. For int that value is 0 — a legitimate threshold, which silently became 5. Any
+        // other sentinel only moves the hole (a -1 would turn into 5 instead of hitting
+        // CK_Products_MinStockLevel), so EF is told to always send what the entity holds; the
+        // schema's default still serves raw INSERTs.
+        builder.Property(p => p.MinStockLevel).HasDefaultValue(5).ValueGeneratedNever();
         builder.Property(p => p.IsActive).HasDefaultValue(true);
 
         builder.HasIndex(p => p.SKU).IsUnique().HasDatabaseName("UQ_Products_SKU");
