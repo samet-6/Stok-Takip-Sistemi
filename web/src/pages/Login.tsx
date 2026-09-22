@@ -9,12 +9,10 @@ import { useAuthStore } from '../stores/authStore'
 import { useToast } from '../components/toastContext'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 import { applyServerFieldErrors } from '../lib/formErrors'
+import { emailRules } from '../lib/schemas'
 
 const schema = z.object({
-  email: z
-    .string()
-    .min(1, 'Bu alan zorunludur')
-    .email('Geçerli bir e-posta girin'),
+  email: emailRules,
   password: z.string().min(1, 'Bu alan zorunludur'),
 })
 

@@ -15,11 +15,11 @@ export function ProductPicker({
   value,
   onChange,
   isInvalid,
-}: {
+}: Readonly<{
   value: number | null
   onChange: (productId: number | null) => void
   isInvalid?: boolean
-}) {
+}>) {
   const [term, setTerm] = useState('')
   const [debouncedTerm, setDebouncedTerm] = useState('')
 
@@ -84,6 +84,58 @@ export function ProductPicker({
   }
 
   const items = resultsQuery.data?.items ?? []
+
+  // Early returns rather than a chain of conditionals inside the markup: each state gets its
+  // own line, and the next one added does not deepen a ternary.
+  const renderResults = () => {
+    if (!hasTerm)
+      return (
+        <div className="text-muted small mt-2">
+          Ürünü bulmak için ad veya SKU yazmaya başlayın.
+        </div>
+      )
+
+    // isLoading, not isFetching: a new search term is a new query key and still shows the
+    // spinner, but a realtime background refetch must not blank out results the user is
+    // reading.
+    if (resultsQuery.isLoading)
+      return (
+        <div className="text-center py-3">
+          <Spinner animation="border" size="sm" />
+        </div>
+      )
+
+    if (items.length === 0) return <div className="text-muted small mt-2">Eşleşen ürün yok.</div>
+
+    return (
+      <>
+        <ListGroup className="mt-2">
+          {items.map((p) => (
+            <ListGroup.Item
+              key={p.id}
+              action
+              as="button"
+              type="button"
+              onClick={() => onChange(p.id)}
+            >
+              <div className="d-flex justify-content-between gap-3">
+                <span>
+                  {p.name} <span className="text-muted">({p.sku})</span>
+                  {!p.isActive && <span className="text-muted"> (Pasif)</span>}
+                </span>
+                <span className="text-muted tnum">Stok: {p.stockQuantity}</span>
+              </div>
+            </ListGroup.Item>
+          ))}
+        </ListGroup>
+        {totalCount > items.length && (
+          <div className="text-muted small mt-2">
+            {totalCount} eşleşmeden ilk {items.length} tanesi gösteriliyor — aramayı daraltın.
+          </div>
+        )}
+      </>
+    )
+  }
   const totalCount = resultsQuery.data?.totalCount ?? 0
 
   return (
@@ -97,47 +149,7 @@ export function ProductPicker({
         autoComplete="off"
       />
 
-      {!hasTerm ? (
-        <div className="text-muted small mt-2">
-          Ürünü bulmak için ad veya SKU yazmaya başlayın.
-        </div>
-      ) : /* isLoading, not isFetching: a new search term is a new query key and still shows
-             the spinner, but a realtime background refetch must not blank out results the
-             user is reading. */
-      resultsQuery.isLoading ? (
-        <div className="text-center py-3">
-          <Spinner animation="border" size="sm" />
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-muted small mt-2">Eşleşen ürün yok.</div>
-      ) : (
-        <>
-          <ListGroup className="mt-2">
-            {items.map((p) => (
-              <ListGroup.Item
-                key={p.id}
-                action
-                as="button"
-                type="button"
-                onClick={() => onChange(p.id)}
-              >
-                <div className="d-flex justify-content-between gap-3">
-                  <span>
-                    {p.name} <span className="text-muted">({p.sku})</span>
-                    {!p.isActive && <span className="text-muted"> (Pasif)</span>}
-                  </span>
-                  <span className="text-muted tnum">Stok: {p.stockQuantity}</span>
-                </div>
-              </ListGroup.Item>
-            ))}
-          </ListGroup>
-          {totalCount > items.length && (
-            <div className="text-muted small mt-2">
-              {totalCount} eşleşmeden ilk {items.length} tanesi gösteriliyor — aramayı daraltın.
-            </div>
-          )}
-        </>
-      )}
+      {renderResults()}
     </>
   )
 }

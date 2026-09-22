@@ -13,7 +13,7 @@ interface StatusChipProps {
  * Status pill for the visual system:
  * ok = Aktif/Giriş · warn = Düşük · crit = Pasif/Çıkış.
  */
-export function StatusChip({ variant, children, dot = true }: StatusChipProps) {
+export function StatusChip({ variant, children, dot = true }: Readonly<StatusChipProps>) {
   return (
     <span className={`chip chip-${variant}`}>
       {dot && <span className="chip-dot" />}

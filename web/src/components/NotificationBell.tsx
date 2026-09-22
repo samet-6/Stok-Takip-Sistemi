@@ -99,6 +99,57 @@ export function NotificationBell() {
     navigate(`/urunler/${n.productId}`)
   }
 
+  // Screen readers get the count in the button's name; sighted users read it off the badge.
+  const unreadLabel = unread > 0 ? `, ${unread} okunmamış` : ''
+
+  // Early returns rather than a chain of conditionals inside the markup: each state gets its
+  // own line, and the next one added does not deepen a ternary.
+  const renderNotifications = () => {
+    if (isLoading)
+      return (
+        <div className="text-center py-4">
+          <Spinner animation="border" size="sm" />
+        </div>
+      )
+
+    if (items.length === 0)
+      return <div className="text-muted small px-3 py-4 text-center">Bildirim yok.</div>
+
+    return items.map((n) => (
+      // The row is no longer a single button: a delete control nested inside one would be
+      // invalid HTML. The clickable area and the × are siblings instead, which leaves the
+      // look unchanged and keeps both reachable by keyboard.
+      <div key={n.id} className="d-flex align-items-start border-bottom">
+        <button
+          type="button"
+          onClick={() => openProduct(n)}
+          className={`dropdown-item text-wrap flex-grow-1 py-2 ${
+            n.readAt === null ? 'fw-semibold' : 'text-muted'
+          }`}
+        >
+          <div className="d-flex align-items-center gap-2 mb-1">
+            <Badge bg={VARIANT[n.type]}>{LABEL[n.type]}</Badge>
+            <span className="small text-muted">{formatDateTime(n.createdAt)}</span>
+          </div>
+          <div className="small">{describe(n)}</div>
+        </button>
+        <Button
+          variant="link"
+          size="sm"
+          className="text-secondary px-2 py-2"
+          aria-label="Bildirimi sil"
+          title="Bildirimi sil"
+          // Deleting a row that is already gone answers 404, so the button closes itself
+          // while the request is in flight rather than relying on a forgiving server.
+          disabled={removeOne.isPending}
+          onClick={() => removeOne.mutate(n.id)}
+        >
+          ×
+        </Button>
+      </div>
+    ))
+  }
+
   return (
     <>
       <Dropdown align="end" show={open} onToggle={setOpen} className="me-3">
@@ -107,7 +158,7 @@ export function NotificationBell() {
           variant="outline-light"
           size="sm"
           className="position-relative"
-          aria-label={`Bildirimler${unread > 0 ? `, ${unread} okunmamış` : ''}`}
+          aria-label={`Bildirimler${unreadLabel}`}
         >
           🔔
           {unread > 0 && (
@@ -147,47 +198,7 @@ export function NotificationBell() {
           </div>
           <Dropdown.Divider className="my-0" />
 
-          {isLoading ? (
-            <div className="text-center py-4">
-              <Spinner animation="border" size="sm" />
-            </div>
-          ) : items.length === 0 ? (
-            <div className="text-muted small px-3 py-4 text-center">Bildirim yok.</div>
-          ) : (
-            items.map((n) => (
-              // The row is no longer a single button: a delete control nested inside one would be
-              // invalid HTML. The clickable area and the × are siblings instead, which leaves the
-              // look unchanged and keeps both reachable by keyboard.
-              <div key={n.id} className="d-flex align-items-start border-bottom">
-                <button
-                  type="button"
-                  onClick={() => openProduct(n)}
-                  className={`dropdown-item text-wrap flex-grow-1 py-2 ${
-                    n.readAt === null ? 'fw-semibold' : 'text-muted'
-                  }`}
-                >
-                  <div className="d-flex align-items-center gap-2 mb-1">
-                    <Badge bg={VARIANT[n.type]}>{LABEL[n.type]}</Badge>
-                    <span className="small text-muted">{formatDateTime(n.createdAt)}</span>
-                  </div>
-                  <div className="small">{describe(n)}</div>
-                </button>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-secondary px-2 py-2"
-                  aria-label="Bildirimi sil"
-                  title="Bildirimi sil"
-                  // Deleting a row that is already gone answers 404, so the button closes itself
-                  // while the request is in flight rather than relying on a forgiving server.
-                  disabled={removeOne.isPending}
-                  onClick={() => removeOne.mutate(n.id)}
-                >
-                  ×
-                </Button>
-              </div>
-            ))
-          )}
+          {renderNotifications()}
         </Dropdown.Menu>
       </Dropdown>
 

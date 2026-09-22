@@ -113,6 +113,15 @@ export default function Calisanlar() {
         u.email.toLowerCase().includes(term),
     )
 
+  // Three different reasons for an empty table, told apart once here instead of as a chain of
+  // conditionals wedged into a table cell.
+  const emptyMessage = (() => {
+    if (term) return 'Aramayla eşleşen çalışan yok.'
+    if (showPassive) return 'İşten çıkarılan çalışan yok.'
+
+    return 'Çalışan yok.'
+  })()
+
   return (
     <>
       <PageHeader
@@ -162,11 +171,7 @@ export default function Calisanlar() {
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={showPassive ? 5 : 4} className="text-center text-muted py-4">
-                    {term
-                      ? 'Aramayla eşleşen çalışan yok.'
-                      : showPassive
-                        ? 'İşten çıkarılan çalışan yok.'
-                        : 'Çalışan yok.'}
+                    {emptyMessage}
                   </td>
                 </tr>
               ) : (

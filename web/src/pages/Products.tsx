@@ -130,6 +130,26 @@ export default function Products() {
 
   const colSpan = isAdmin ? 8 : 7
 
+  // The two states that stand in for the whole table. Computed here with early returns rather
+  // than chained into the markup, which would put the table itself at the end of a ternary.
+  const renderPendingState = () => {
+    if (productsQuery.isError)
+      return (
+        <Alert variant="danger">
+          {problemMessage(parseProblemDetails(productsQuery.error))}
+        </Alert>
+      )
+
+    if (productsQuery.isLoading)
+      return (
+        <div className="text-center py-5">
+          <Spinner animation="border" role="status" />
+        </div>
+      )
+
+    return null
+  }
+
   return (
     <>
       <PageHeader
@@ -212,15 +232,7 @@ export default function Products() {
         </Col>
       </Row>
 
-      {productsQuery.isError ? (
-        <Alert variant="danger">
-          {problemMessage(parseProblemDetails(productsQuery.error))}
-        </Alert>
-      ) : productsQuery.isLoading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" role="status" />
-        </div>
-      ) : (
+      {renderPendingState() ?? (
         <>
           <div className="table-card">
             <Table hover responsive className="align-middle">

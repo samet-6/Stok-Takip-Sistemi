@@ -22,11 +22,11 @@ export function CategoryFormModal({
   show,
   category,
   onHide,
-}: {
+}: Readonly<{
   show: boolean
   category: CategoryDto | null
   onHide: () => void
-}) {
+}>) {
   const qc = useQueryClient()
   const { showSuccess, showError } = useToast()
 

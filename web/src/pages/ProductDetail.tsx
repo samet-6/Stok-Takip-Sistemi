@@ -9,7 +9,7 @@ import { StatusChip } from '../components/StatusChip'
 import { DeactivationNote } from '../components/DeactivationNote'
 import { formatCurrency, formatDateTime } from '../lib/format'
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
     <Col md={6} className="mb-3">
       <div className="text-muted small">{label}</div>

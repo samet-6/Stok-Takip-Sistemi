@@ -43,6 +43,19 @@ describe('Çalışan formu e-posta sınırı', () => {
     )
   })
 
+  // react-hook-form shows the first issue for a field, so the order the rules run in is what
+  // the user reads. An untouched field is empty, not malformed: telling them the address is
+  // invalid when they have not typed one is the wrong sentence.
+  it('boş alanda format değil zorunluluk mesajı veriyor', () => {
+    expect(emailIssues('')[0]?.message).toBe('Bu alan zorunludur')
+  })
+
+  // The other half of the same rule: without this, an error callback that answered
+  // "Bu alan zorunludur" to everything would satisfy the test above.
+  it('bozuk adreste format mesajı veriyor', () => {
+    expect(emailIssues('stok.local')[0]?.message).toBe('Geçerli bir e-posta girin')
+  })
+
   // The limit is not a property of the create form: an edit that moves an account to an
   // oversized address reaches the same column.
   it('düzenleme modunda da geçerli', () => {

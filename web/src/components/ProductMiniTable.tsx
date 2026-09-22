@@ -11,10 +11,10 @@ import { StatusChip } from './StatusChip'
 export function ProductMiniTable({
   items,
   otherColumn,
-}: {
+}: Readonly<{
   items: ProductListDto[]
   otherColumn: 'category' | 'supplier'
-}) {
+}>) {
   return (
     <div className="table-card">
       <Table hover responsive className="align-middle">

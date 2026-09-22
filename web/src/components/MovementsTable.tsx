@@ -9,10 +9,10 @@ import { StatusChip } from './StatusChip'
 export function MovementsTable({
   items,
   showCreatedBy = false,
-}: {
+}: Readonly<{
   items: StockMovementDto[]
   showCreatedBy?: boolean
-}) {
+}>) {
   return (
     <div className="table-card">
       <Table hover responsive className="align-middle">

@@ -59,7 +59,7 @@ function build(queryClient: QueryClient): HubConnection {
 
 async function tryStart(): Promise<void> {
   const current = connection
-  if (!current || current.state !== HubConnectionState.Disconnected) return
+  if (current?.state !== HubConnectionState.Disconnected) return
 
   try {
     await current.start()
@@ -110,15 +110,15 @@ function disconnect(): void {
  * covered by reading the current state up front.
  */
 export function initRealtime(queryClient: QueryClient): void {
-  const sync = (isAuthenticated: boolean) => {
-    if (isAuthenticated) connect(queryClient)
-    else disconnect()
-  }
-
-  sync(selectIsAuthenticated(useAuthStore.getState()))
+  // Only "connect" is meaningful at startup: module state is still empty, so the disconnect
+  // branch this used to take was a no-op on a null connection and a null timer.
+  if (selectIsAuthenticated(useAuthStore.getState())) connect(queryClient)
 
   useAuthStore.subscribe((state, previous) => {
     const isAuthenticated = selectIsAuthenticated(state)
-    if (isAuthenticated !== selectIsAuthenticated(previous)) sync(isAuthenticated)
+    if (isAuthenticated === selectIsAuthenticated(previous)) return
+
+    if (isAuthenticated) connect(queryClient)
+    else disconnect()
   })
 }

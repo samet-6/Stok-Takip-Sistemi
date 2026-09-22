@@ -151,6 +151,15 @@ a:focus-visible,
   background-color: rgba(255, 255, 255, 0.14);
   border-radius: 8px;
 }
+/* The same pill has to darken, not lighten, on the dark theme's lighter navbar (#3f6ea3):
+   a white wash there pushes white-on-pill down to 3.99:1, under the 4.5:1 AA floor, and
+   dropping the wash to the 6% that would clear it leaves no visible pill at all. A black
+   wash at the same 14% reads as the same treatment and measures 6.65:1.
+   (Light theme is unaffected and sits at 7.56:1 — Sonar's css:S7924 on the rule above does
+   not composite the rgba over its parent, so it reports a failure that is not there.) */
+:root[data-theme='dark'] .app-navbar .nav-link.active {
+  background-color: rgba(0, 0, 0, 0.14);
+}
 
 /* Tables — hairline rows, quiet header with a stronger baseline rule. */
 .table {

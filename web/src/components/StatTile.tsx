@@ -8,7 +8,7 @@ interface StatTileProps {
 }
 
 /** One summary tile. Lay several inside a `.stat-tiles` (or `.stat-tiles cols-3`) grid. */
-export function StatTile({ label, value, valueColor }: StatTileProps) {
+export function StatTile({ label, value, valueColor }: Readonly<StatTileProps>) {
   return (
     <div className="stat-tile">
       <div className="stat-label">{label}</div>

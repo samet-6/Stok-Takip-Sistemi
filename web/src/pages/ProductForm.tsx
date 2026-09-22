@@ -111,7 +111,7 @@ export default function ProductForm() {
 
     const incoming = toFormValues(p)
 
-    if (baseline === null || baseline.productId !== p.id) {
+    if (baseline?.productId !== p.id) {
       reset(incoming)
       setBaseline({ productId: p.id, values: incoming, rowVersion: p.rowVersion })
       setConflict(false)

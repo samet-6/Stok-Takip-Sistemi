@@ -22,7 +22,7 @@ export function ConfirmModal({
   confirming = false,
   onConfirm,
   onHide,
-}: ConfirmModalProps) {
+}: Readonly<ConfirmModalProps>) {
   return (
     <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton>

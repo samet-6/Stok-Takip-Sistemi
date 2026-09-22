@@ -25,6 +25,27 @@ export default function CalisanHareketleri() {
 
   const data = movementsQuery.data
 
+  // Early returns rather than a chain of conditionals inside the markup: each state gets its
+  // own line, and the next one added does not deepen a ternary.
+  const renderMovements = () => {
+    if (movementsQuery.isLoading)
+      return (
+        <div className="text-center py-5">
+          <Spinner animation="border" />
+        </div>
+      )
+    if (movementsQuery.isError) return <Alert variant="danger">Hareketler yüklenemedi.</Alert>
+    if (!data || data.items.length === 0)
+      return <Alert variant="secondary">Bu çalışanın henüz hareketi yok.</Alert>
+
+    return (
+      <>
+        <MovementsTable items={data.items} showCreatedBy />
+        <Pager page={page} totalPages={data.totalPages} onChange={setPage} />
+      </>
+    )
+  }
+
   return (
     <>
       <div className="mb-2">
@@ -36,20 +57,7 @@ export default function CalisanHareketleri() {
         title={employee ? `${employee.fullName} — Hareketleri` : 'Çalışan Hareketleri'}
       />
 
-      {movementsQuery.isLoading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" />
-        </div>
-      ) : movementsQuery.isError ? (
-        <Alert variant="danger">Hareketler yüklenemedi.</Alert>
-      ) : !data || data.items.length === 0 ? (
-        <Alert variant="secondary">Bu çalışanın henüz hareketi yok.</Alert>
-      ) : (
-        <>
-          <MovementsTable items={data.items} showCreatedBy />
-          <Pager page={page} totalPages={data.totalPages} onChange={setPage} />
-        </>
-      )}
+      {renderMovements()}
     </>
   )
 }

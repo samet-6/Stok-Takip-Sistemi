@@ -6,11 +6,11 @@ export function Pager({
   page,
   totalPages,
   onChange,
-}: {
+}: Readonly<{
   page: number
   totalPages: number
   onChange: (n: number) => void
-}) {
+}>) {
   if (totalPages <= 1) return null
   return (
     <Pagination className="justify-content-center">

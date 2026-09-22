@@ -94,6 +94,28 @@ export default function Hesabim() {
 
   const data = movementsQuery.data
 
+  // Early returns rather than a chain of conditionals inside the markup: each state gets its
+  // own line, and the next one added does not deepen a ternary.
+  const renderMovements = () => {
+    if (movementsQuery.isLoading)
+      return (
+        <div className="text-center py-5">
+          <Spinner animation="border" />
+        </div>
+      )
+    if (movementsQuery.isError) return <Alert variant="danger">Hareketler yüklenemedi.</Alert>
+    if (!data || data.items.length === 0)
+      return <Alert variant="secondary">Henüz hareketiniz yok.</Alert>
+
+    return (
+      <>
+        <MovementsTable items={data.items} />
+
+        <Pager page={page} totalPages={data.totalPages} onChange={setPage} />
+      </>
+    )
+  }
+
   return (
     <>
       <PageHeader title="Hesabım" subtitle="Hesap bilgileriniz ve stok hareketleriniz." />
@@ -119,21 +141,7 @@ export default function Hesabim() {
       </Card>
 
       <h3 className="h5 mb-3">Stok Hareketlerim</h3>
-      {movementsQuery.isLoading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" />
-        </div>
-      ) : movementsQuery.isError ? (
-        <Alert variant="danger">Hareketler yüklenemedi.</Alert>
-      ) : !data || data.items.length === 0 ? (
-        <Alert variant="secondary">Henüz hareketiniz yok.</Alert>
-      ) : (
-        <>
-          <MovementsTable items={data.items} />
-
-          <Pager page={page} totalPages={data.totalPages} onChange={setPage} />
-        </>
-      )}
+      {renderMovements()}
 
       {/* Change password modal (bank-style: current password required) */}
       <Modal show={showPwModal} onHide={() => setShowPwModal(false)} centered>

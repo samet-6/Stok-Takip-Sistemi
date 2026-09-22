@@ -24,10 +24,10 @@ const PARAM_DEFAULTS = { tab: 'urun', page: '1' }
 export function CatalogDetailView({
   scope,
   otherColumn,
-}: {
+}: Readonly<{
   scope: { supplierId: number } | { categoryId: number }
   otherColumn: 'category' | 'supplier'
-}) {
+}>) {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const tab: 'urun' | 'har' = searchParams.get('tab') === 'har' ? 'har' : 'urun'
@@ -84,6 +84,39 @@ export function CatalogDetailView({
   })
   const movements = movementsQuery.data?.items ?? []
 
+  const spinner = (
+    <div className="text-center py-5">
+      <Spinner animation="border" />
+    </div>
+  )
+
+  // Early returns rather than a chain of conditionals inside the markup: each state gets its
+  // own line, and the next one added does not deepen a ternary.
+  const renderProducts = () => {
+    if (productsQuery.isLoading) return spinner
+    if (productsQuery.isError) return <Alert variant="danger">Ürünler yüklenemedi.</Alert>
+
+    return <ProductMiniTable items={products} otherColumn={otherColumn} />
+  }
+
+  const renderMovements = () => {
+    if (movementsQuery.isLoading) return spinner
+    if (movementsQuery.isError) return <Alert variant="danger">Hareketler yüklenemedi.</Alert>
+    if (movements.length === 0)
+      return <Alert variant="secondary">Bu filtrelerle hareket bulunamadı.</Alert>
+
+    return (
+      <>
+        <MovementsTable items={movements} showCreatedBy />
+        <Pager
+          page={page}
+          totalPages={movementsQuery.data?.totalPages ?? 1}
+          onChange={goToPage}
+        />
+      </>
+    )
+  }
+
   return (
     <>
       {/* Summary tiles */}
@@ -101,15 +134,7 @@ export function CatalogDetailView({
 
       <Tabs activeKey={tab} onSelect={(k) => selectTab(k ?? 'urun')} className="mb-3">
         <Tab eventKey="urun" title={`Ürünler (${summary?.totalProducts ?? products.length})`}>
-          {productsQuery.isLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-            </div>
-          ) : productsQuery.isError ? (
-            <Alert variant="danger">Ürünler yüklenemedi.</Alert>
-          ) : (
-            <ProductMiniTable items={products} otherColumn={otherColumn} />
-          )}
+          {renderProducts()}
         </Tab>
 
         <Tab eventKey="har" title="Stok Hareketleri">
@@ -165,24 +190,7 @@ export function CatalogDetailView({
             </Col>
           </Row>
 
-          {movementsQuery.isLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-            </div>
-          ) : movementsQuery.isError ? (
-            <Alert variant="danger">Hareketler yüklenemedi.</Alert>
-          ) : movements.length === 0 ? (
-            <Alert variant="secondary">Bu filtrelerle hareket bulunamadı.</Alert>
-          ) : (
-            <>
-              <MovementsTable items={movements} showCreatedBy />
-              <Pager
-                page={page}
-                totalPages={movementsQuery.data?.totalPages ?? 1}
-                onChange={goToPage}
-              />
-            </>
-          )}
+          {renderMovements()}
         </Tab>
       </Tabs>
     </>

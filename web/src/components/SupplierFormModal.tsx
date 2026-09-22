@@ -7,15 +7,12 @@ import { Button, Form, Modal, Spinner } from 'react-bootstrap'
 import { createSupplier, updateSupplier } from '../api/suppliers'
 import type { SupplierDto } from '../types/api'
 import { useToast } from './toastContext'
+import { emailRules } from '../lib/schemas'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
 const schema = z.object({
   name: z.string().min(1, 'Bu alan zorunludur').max(150, 'En fazla 150 karakter olabilir'),
-  contactEmail: z
-    .string()
-    .min(1, 'Bu alan zorunludur')
-    .email('Geçerli bir e-posta girin')
-    .max(150, 'En fazla 150 karakter olabilir'),
+  contactEmail: emailRules.max(150, 'En fazla 150 karakter olabilir'),
   phone: z.string().max(20, 'En fazla 20 karakter olabilir'),
   address: z.string().max(300, 'En fazla 300 karakter olabilir'),
   isActive: z.boolean(),
@@ -28,11 +25,11 @@ export function SupplierFormModal({
   show,
   supplier,
   onHide,
-}: {
+}: Readonly<{
   show: boolean
   supplier: SupplierDto | null
   onHide: () => void
-}) {
+}>) {
   const qc = useQueryClient()
   const { showSuccess, showError } = useToast()
 

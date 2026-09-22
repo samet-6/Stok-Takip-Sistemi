@@ -7,7 +7,7 @@ import { formatDate } from '../lib/format'
  * so out loud is the point of this component — three inline ternaries would eventually disagree
  * about what a missing date means.
  */
-export function DeactivationNote({ at }: { at?: string | null }) {
+export function DeactivationNote({ at }: Readonly<{ at?: string | null }>) {
   return (
     <span className="text-muted small ms-2">
       {at ? `${formatDate(at)} tarihinde pasife alındı` : 'pasife alınma tarihi kayıtlı değil'}

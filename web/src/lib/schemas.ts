@@ -9,6 +9,20 @@ import { z } from 'zod'
 const isIntString = (v: string) => /^\d+$/.test(v)
 const isNumberString = (v: string) => v !== '' && !Number.isNaN(Number(v))
 
+/**
+ * A required, well-formed e-mail address. Shared because the two mistakes have to stay apart:
+ * an untouched field is empty, not malformed, and "enter a valid address" is the wrong sentence
+ * for someone who has typed nothing.
+ *
+ * `z.email()` is zod 4's replacement for the deprecated `z.string().email()`. Its format check
+ * runs before any `.min()` added afterwards, so a leading `.min(1)` no longer wins — the
+ * distinction has to be drawn inside the error callback instead. Callers add their own `.max()`
+ * for the column they map to.
+ */
+export const emailRules = z.email({
+  error: (issue) => (issue.input === '' ? 'Bu alan zorunludur' : 'Geçerli bir e-posta girin'),
+})
+
 export const productSchema = z.object({
   name: z.string().min(1, 'Bu alan zorunludur').max(150, 'En fazla 150 karakter olabilir'),
   sku: z.string().min(1, 'Bu alan zorunludur').max(30, 'En fazla 30 karakter olabilir'),
@@ -46,11 +60,7 @@ export function makeUserSchema(isEdit: boolean) {
       .string()
       .min(1, 'Bu alan zorunludur')
       .max(100, 'En fazla 100 karakter olabilir'),
-    email: z
-      .string()
-      .min(1, 'Bu alan zorunludur')
-      .email('Geçerli bir e-posta girin')
-      .max(256, 'En fazla 256 karakter olabilir'),
+    email: emailRules.max(256, 'En fazla 256 karakter olabilir'),
     password: isEdit ? z.union([z.literal(''), passwordRules]) : passwordRules,
   })
 }

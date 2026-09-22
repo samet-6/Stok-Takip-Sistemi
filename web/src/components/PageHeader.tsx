@@ -8,7 +8,7 @@ interface PageHeaderProps {
 }
 
 /** Page heading pattern: title + optional subtitle + one optional action. */
-export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, action }: Readonly<PageHeaderProps>) {
   return (
     <div className="page-header">
       <div>
