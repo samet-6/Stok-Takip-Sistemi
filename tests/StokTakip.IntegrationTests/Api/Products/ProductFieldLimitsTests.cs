@@ -116,6 +116,68 @@ public sealed class ProductFieldLimitsTests : IAsyncLifetime
             await db.Products.Where(p => p.SKU == sku).Select(p => p.Description).SingleAsync(Ct));
     }
 
+    // ── D8: an SKU is a code — letters, digits and . _ / - only ────────────────────────────
+    // "ı" is the case that forced the rule: .NET's ToUpperInvariant leaves it as it is, so
+    // "abı-1" used to be stored as "ABı-1" — lower case in an upper-case column, and a second
+    // spelling of "ABI-1" that the uniqueness rule could not see.
+
+    [Theory]
+    [InlineData("ABı-1")]
+    [InlineData("ABÇ-1")]
+    [InlineData("AB 1")]
+    [InlineData("ABß")]
+    [InlineData("AB#1")]
+    public async Task Kural_disi_karakterli_SKU_ile_urun_olusturma_400_sku_alani_donuyor(string suffix)
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var (categoryId, supplierId) = await TestScratch.SeedCatalogAsync(_db, Ct);
+
+        var response = await TestScratch.PostProductAsync(admin, suffix, categoryId, supplierId, Ct);
+
+        await AssertFieldErrorAsync(response, "sku");
+    }
+
+    [Fact]
+    public async Task Kural_disi_karakterli_SKU_ile_urun_duzenleme_400_sku_alani_donuyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var (categoryId, supplierId) = await TestScratch.SeedCatalogAsync(_db, Ct);
+        var created = await TestScratch.CreateProductAsync(admin, "SKU-01", categoryId, supplierId, Ct);
+
+        var response = await admin.PutAsJsonAsync(
+            $"/api/products/{created.Id}",
+            new
+            {
+                name = created.Name,
+                sku = TestScratch.Sku("SKUı-01"),
+                categoryId,
+                supplierId,
+                unitPrice = created.UnitPrice,
+                minStockLevel = created.MinStockLevel,
+                isActive = true,
+                rowVersion = created.RowVersion
+            },
+            Ct);
+
+        await AssertFieldErrorAsync(response, "sku");
+
+        await using var db = _db.CreateContext();
+        Assert.Equal(created.SKU, await db.Products.Where(p => p.Id == created.Id).Select(p => p.SKU).SingleAsync(Ct));
+    }
+
+    // Lower case is accepted on the way in — the server upper-cases it — and so is every
+    // punctuation mark the rule allows.
+    [Fact]
+    public async Task Kucuk_harfli_ve_izinli_isaretli_SKU_buyuk_harfle_kaydediliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var (categoryId, supplierId) = await TestScratch.SeedCatalogAsync(_db, Ct);
+
+        var created = await TestScratch.CreateProductAsync(admin, "ab-1.x/2_y", categoryId, supplierId, Ct);
+
+        Assert.Equal(TestScratch.Sku("ab-1.x/2_y").ToUpperInvariant(), created.SKU);
+    }
+
     private static async Task AssertFieldErrorAsync(HttpResponseMessage response, string field)
     {
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

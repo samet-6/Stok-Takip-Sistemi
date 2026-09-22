@@ -25,7 +25,12 @@ export const emailRules = z.email({
 
 export const productSchema = z.object({
   name: z.string().min(1, 'Bu alan zorunludur').max(150, 'En fazla 150 karakter olabilir'),
-  sku: z.string().min(1, 'Bu alan zorunludur').max(30, 'En fazla 30 karakter olabilir'),
+  // D8 — mirrors the backend's SkuRule (the source of truth): an SKU is a code, not a word.
+  sku: z
+    .string()
+    .min(1, 'Bu alan zorunludur')
+    .max(30, 'En fazla 30 karakter olabilir')
+    .regex(/^\s*[A-Za-z0-9._/-]+\s*$/, 'Yalnız harf (A–Z), rakam ve . _ / - kullanılabilir'),
   description: z.string().max(500, 'En fazla 500 karakter olabilir'),
   categoryId: z.string().min(1, 'Kategori seçin'),
   supplierId: z.string().min(1, 'Tedarikçi seçin'),

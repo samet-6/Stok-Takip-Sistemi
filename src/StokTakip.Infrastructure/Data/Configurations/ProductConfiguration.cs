@@ -76,6 +76,11 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             t.HasCheckConstraint("CK_Products_UnitPrice", "\"UnitPrice\" >= 0");
             t.HasCheckConstraint("CK_Products_StockQuantity", "\"StockQuantity\" >= 0");
             t.HasCheckConstraint("CK_Products_MinStockLevel", "\"MinStockLevel\" >= 0");
+
+            // D8: the stored SKU — trimmed and upper-cased by the service — is ASCII letters,
+            // digits and . _ / - only. A regex, not upper(): upper() depends on the database's
+            // ctype and gave different answers in dev and in the container (see SkuRule).
+            t.HasCheckConstraint("CK_Products_SKU", "\"SKU\" ~ '^[A-Z0-9._/-]+$'");
         });
     }
 }

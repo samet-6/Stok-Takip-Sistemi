@@ -104,6 +104,22 @@ public sealed class ConstraintTests
         Assert.Equal("CK_Products_StockQuantity", error.ConstraintName);
     }
 
+    // D8 at the database itself: lower case, and the "ı" that ToUpperInvariant leaves alone.
+    [Theory]
+    [InlineData("D8-abc")]
+    [InlineData("D8-ABı")]
+    public async Task Kural_disi_SKU_check_ihlali_veriyor(string sku)
+    {
+        await using var db = _db.CreateContext();
+        var (categoryId, supplierId) = await SeedIdsAsync(db);
+
+        db.Products.Add(NewProduct(categoryId, supplierId, sku));
+
+        var error = await AssertPostgresFailureAsync(db);
+        Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
+        Assert.Equal("CK_Products_SKU", error.ConstraintName);
+    }
+
     [Fact]
     public async Task Negatif_minimum_stok_seviyesi_check_ihlali_veriyor()
     {

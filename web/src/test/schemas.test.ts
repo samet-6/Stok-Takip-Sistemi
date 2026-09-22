@@ -69,6 +69,25 @@ describe('Çalışan formu e-posta sınırı', () => {
   })
 })
 
+function skuIssues(sku: string) {
+  const result = productSchema.safeParse({ ...VALID_PRODUCT, description: '', sku })
+
+  return result.success ? [] : result.error.issues.filter((i) => i.path[0] === 'sku')
+}
+
+// D8 — mirrors the backend rule (the source of truth): an SKU is a code, not a word.
+describe('Ürün formu SKU kuralı', () => {
+  it.each(['TEST-01', 'ab-1.x/2_y', '  test-01  '])('%s kabul ediliyor', (sku) => {
+    expect(skuIssues(sku)).toEqual([])
+  })
+
+  it.each(['ABı-1', 'ABÇ-1', 'AB 1', 'ABß', 'AB#1'])('%s reddediliyor', (sku) => {
+    expect(skuIssues(sku).map((i) => i.message)).toContain(
+      'Yalnız harf (A–Z), rakam ve . _ / - kullanılabilir',
+    )
+  })
+})
+
 describe('Ürün formu açıklama sınırı', () => {
   it('500 karakteri kabul ediyor — sınır dahil', () => {
     expect(descriptionIssues('a'.repeat(500))).toEqual([])

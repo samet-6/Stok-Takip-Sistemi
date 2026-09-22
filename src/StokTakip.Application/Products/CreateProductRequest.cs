@@ -10,6 +10,7 @@ public sealed class CreateProductRequest
 
     [Required(ErrorMessage = "Bu alan zorunludur")]
     [MaxLength(30, ErrorMessage = "En fazla 30 karakter olabilir")]
+    [RegularExpression(SkuRule.Pattern, ErrorMessage = SkuRule.Message)]
     public string SKU { get; set; } = string.Empty;
 
     [MaxLength(500, ErrorMessage = "En fazla 500 karakter olabilir")]
