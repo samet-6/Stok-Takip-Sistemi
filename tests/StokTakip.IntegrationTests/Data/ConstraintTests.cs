@@ -38,6 +38,20 @@ public sealed class ConstraintTests
         Assert.Equal("UQ_Products_SKU", error.ConstraintName);
     }
 
+    // D9c at the database itself, service bypassed: "GIDA" is the seeded "Gıda" once both go
+    // through f_name_key().
+    [Fact]
+    public async Task Harf_buyuklugu_farkli_ayni_kategori_unique_ihlali_veriyor()
+    {
+        await using var db = _db.CreateContext();
+
+        db.Categories.Add(new Category { Name = "GIDA", IsActive = true });
+
+        var error = await AssertPostgresFailureAsync(db);
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
+        Assert.Equal("UQ_Categories_NameKey", error.ConstraintName);
+    }
+
     [Fact]
     public async Task Sifir_miktarli_stok_hareketi_check_ihlali_veriyor()
     {
@@ -143,6 +157,44 @@ public sealed class ConstraintTests
         var error = await AssertPostgresFailureAsync(db);
         Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
         Assert.Equal("CK_Notifications_Type", error.ConstraintName);
+    }
+
+    // D7: the requested amount belongs to a refused Out movement and only there — without it a
+    // rejection cannot say what was asked for, and on any other type it is a number meaning nothing.
+    [Theory]
+    [InlineData(NotificationType.RejectedOutMovement, null)]
+    [InlineData(NotificationType.LowStock, 5)]
+    public async Task Istenen_miktar_yalniz_reddedilen_cikista_ve_orada_zorunlu(
+        NotificationType type, int? requestedQuantity)
+    {
+        await using var db = _db.CreateContext();
+        var productId = await db.Products.Select(p => p.Id).FirstAsync(Ct);
+        var userId = await db.Users.Select(u => u.Id).FirstAsync(Ct);
+
+        var notification = NewNotification(productId, userId);
+        notification.Type = type;
+        notification.RequestedQuantity = requestedQuantity;
+        db.Notifications.Add(notification);
+
+        var error = await AssertPostgresFailureAsync(db);
+        Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
+        Assert.Equal("CK_Notifications_RequestedQuantity", error.ConstraintName);
+    }
+
+    [Fact]
+    public async Task Negatif_stoklu_bildirim_check_ihlali_veriyor()
+    {
+        await using var db = _db.CreateContext();
+        var productId = await db.Products.Select(p => p.Id).FirstAsync(Ct);
+        var userId = await db.Users.Select(u => u.Id).FirstAsync(Ct);
+
+        var notification = NewNotification(productId, userId);
+        notification.Quantity = -1;
+        db.Notifications.Add(notification);
+
+        var error = await AssertPostgresFailureAsync(db);
+        Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
+        Assert.Equal("CK_Notifications_Quantity", error.ConstraintName);
     }
 
     /// <summary>

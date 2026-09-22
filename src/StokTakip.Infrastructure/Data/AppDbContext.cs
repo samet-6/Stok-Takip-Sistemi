@@ -36,6 +36,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
         // code and cannot drift.
         builder.HasDbFunction(typeof(SearchText).GetMethod(nameof(SearchText.Fold), [typeof(string)])!)
             .HasName(PostgresText.FoldFunction);
+
+        // Same arrangement for the name-uniqueness key: the pre-check's term and the unique
+        // column go through one database function.
+        builder.HasDbFunction(typeof(NameText).GetMethod(nameof(NameText.Key), [typeof(string)])!)
+            .HasName(PostgresText.NameKeyFunction);
     }
 
     public override int SaveChanges()

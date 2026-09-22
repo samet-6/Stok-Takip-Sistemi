@@ -45,7 +45,7 @@ public sealed class SupplierService : ISupplierService
     {
         var supplier = new Supplier
         {
-            Name = request.Name,
+            Name = CleanName(request.Name),
             ContactEmail = request.ContactEmail,
             Phone = request.Phone,
             Address = request.Address,
@@ -66,12 +66,22 @@ public sealed class SupplierService : ISupplierService
         var supplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct)
             ?? throw new NotFoundException("Tedarikçi bulunamadı");
 
-        supplier.Name = request.Name;
+        supplier.Name = CleanName(request.Name);
         supplier.ContactEmail = request.ContactEmail;
         supplier.Phone = request.Phone;
         supplier.Address = request.Address;
         supplier.IsActive = request.IsActive;
         await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// No uniqueness for supplier names (D9c), but a trailing zero-width space still sorts and
+    /// searches differently from the name it looks identical to — so the same cleaning applies.
+    /// </summary>
+    private static string CleanName(string raw)
+    {
+        var name = NameText.Clean(raw);
+        return name.Length > 0 ? name : throw new BadRequestException("Tedarikçi adı boş olamaz");
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct)

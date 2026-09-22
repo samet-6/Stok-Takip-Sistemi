@@ -306,6 +306,126 @@ public sealed class CatalogTests
         return (id, count);
     }
 
+    // ── D9c: category-name uniqueness is Turkish-case-insensitive, and names are cleaned ──────
+    // Seed has "Gıda". Every variant below looks like it, or differs only in case, so each must be
+    // refused — and by the service's own check (its title), not by the database's safety net,
+    // which would mean the two disagree on what "the same name" is.
+
+    [Theory]
+    [InlineData("GIDA")]
+    [InlineData("gıda")]
+    [InlineData("  Gıda  ")]
+    [InlineData("Gıda​")]
+    [InlineData("Gıda ")]
+    public async Task Gorunusu_ya_da_harf_buyuklugu_farkli_ayni_kategori_409_aliyor(string name)
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+
+        var response = await admin.PostAsJsonAsync("/api/categories", new { name }, Ct);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("Bu kategori adı zaten kayıtlı", await TitleOfAsync(response));
+        Assert.Equal(4, await CountAsync(db => db.Categories.CountAsync(Ct)));
+    }
+
+    // ı/i and c/ç are different letters in Turkish, not decorated variants of one another.
+    [Theory]
+    [InlineData("T3 Kıl", "T3 Kil")]
+    [InlineData("T3 Cam", "T3 Çam")]
+    public async Task Yalniz_Turkce_harfle_ayrilan_iki_kategori_acilabiliyor(string first, string second)
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var created = new List<int>();
+
+        try
+        {
+            foreach (var name in new[] { first, second })
+            {
+                var response = await admin.PostAsJsonAsync("/api/categories", new { name }, Ct);
+                Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+                created.Add((await response.Content.ReadFromJsonAsync<Category>(Ct))!.Id);
+            }
+        }
+        finally
+        {
+            foreach (var id in created)
+                await admin.DeleteAsync($"/api/categories/{id}", Ct);
+        }
+    }
+
+    [Fact]
+    public async Task Kategori_var_olan_bir_ada_harf_buyuklugu_degistirilerek_adlandirilamiyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var response = await admin.PostAsJsonAsync("/api/categories", new { name = "T3 Adlandirma" }, Ct);
+        var created = (await response.Content.ReadFromJsonAsync<Category>(Ct))!;
+
+        try
+        {
+            var renamed = await admin.PutAsJsonAsync(
+                $"/api/categories/{created.Id}", new { name = "ELEKTRONİK", isActive = true }, Ct);
+
+            Assert.Equal(HttpStatusCode.Conflict, renamed.StatusCode);
+            Assert.Equal("Bu kategori adı zaten kayıtlı", await TitleOfAsync(renamed));
+        }
+        finally
+        {
+            await admin.DeleteAsync($"/api/categories/{created.Id}", Ct);
+        }
+    }
+
+    [Fact]
+    public async Task Kategori_adi_temizlenmis_haliyle_kaydediliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+
+        var response = await admin.PostAsJsonAsync(
+            "/api/categories", new { name = "  T3 Temiz   Ad​" }, Ct);
+        var created = (await response.Content.ReadFromJsonAsync<Category>(Ct))!;
+
+        try
+        {
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            Assert.Equal("T3 Temiz Ad", created.Name);
+        }
+        finally
+        {
+            await admin.DeleteAsync($"/api/categories/{created.Id}", Ct);
+        }
+    }
+
+    // Passes [Required] — a zero-width space is not whitespace to .NET — but is empty once cleaned.
+    [Fact]
+    public async Task Yalniz_gorunmez_karakterden_olusan_kategori_adi_400_aliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+
+        var response = await admin.PostAsJsonAsync("/api/categories", new { name = "​" }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(4, await CountAsync(db => db.Categories.CountAsync(Ct)));
+    }
+
+    [Fact]
+    public async Task Tedarikci_adi_temizlenmis_haliyle_kaydediliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+
+        var response = await admin.PostAsJsonAsync(
+            "/api/suppliers", new { name = "  T3 Temiz   Tedarikçi​", contactEmail = "temiz@t3.local" }, Ct);
+        var created = (await response.Content.ReadFromJsonAsync<Supplier>(Ct))!;
+
+        try
+        {
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            Assert.Equal("T3 Temiz Tedarikçi", created.Name);
+        }
+        finally
+        {
+            await admin.DeleteAsync($"/api/suppliers/{created.Id}", Ct);
+        }
+    }
+
     private async Task<int> CountAsync(Func<Infrastructure.Data.AppDbContext, Task<int>> count)
     {
         await using var db = _db.CreateContext();

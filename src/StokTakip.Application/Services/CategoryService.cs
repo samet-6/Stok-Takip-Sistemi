@@ -43,13 +43,14 @@ public sealed class CategoryService : ICategoryService
 
     public async Task<CategoryDto> CreateAsync(CreateCategoryRequest request, CancellationToken ct)
     {
-        if (await _db.Categories.AnyAsync(c => c.Name == request.Name, ct))
+        var name = CleanName(request.Name);
+        if (await NameTakenAsync(name, exceptId: null, ct))
             throw new ConflictException("Bu kategori adı zaten kayıtlı");
 
         // Born active, like suppliers: switching one off is a separate, deliberate edit.
         var category = new Category
         {
-            Name = request.Name,
+            Name = name,
             Description = request.Description,
             IsActive = true
         };
@@ -68,14 +69,33 @@ public sealed class CategoryService : ICategoryService
         var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id, ct)
             ?? throw new NotFoundException("Kategori bulunamadı");
 
-        if (await _db.Categories.AnyAsync(c => c.Id != id && c.Name == request.Name, ct))
+        var name = CleanName(request.Name);
+        if (await NameTakenAsync(name, exceptId: id, ct))
             throw new ConflictException("Bu kategori adı zaten kayıtlı");
 
-        category.Name = request.Name;
+        category.Name = name;
         category.Description = request.Description;
         category.IsActive = request.IsActive;
         await _db.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// Cleaned, and refused if nothing visible is left: a zero-width space passes [Required]
+    /// (.NET does not count it as whitespace) but would store a name nobody can see.
+    /// </summary>
+    private static string CleanName(string raw)
+    {
+        var name = NameText.Clean(raw);
+        return name.Length > 0 ? name : throw new BadRequestException("Kategori adı boş olamaz");
+    }
+
+    /// <summary>
+    /// Asks the database, through the same f_name_key() that generates the unique column — the
+    /// pre-check and the index answer "is this name taken" with one rule.
+    /// </summary>
+    private Task<bool> NameTakenAsync(string name, int? exceptId, CancellationToken ct) =>
+        _db.Categories.AnyAsync(
+            c => c.Id != exceptId && EF.Property<string>(c, NameText.NameKey) == NameText.Key(name), ct);
 
     public async Task DeleteAsync(int id, CancellationToken ct)
     {

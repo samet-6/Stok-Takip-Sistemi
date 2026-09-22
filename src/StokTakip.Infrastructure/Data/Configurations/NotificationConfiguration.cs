@@ -34,6 +34,16 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         builder.HasIndex(n => n.ProductId).HasDatabaseName("IX_Notifications_ProductId");
 
         builder.ToTable(t =>
-            t.HasCheckConstraint("CK_Notifications_Type", "\"Type\" IN (1, 2, 3)"));
+        {
+            t.HasCheckConstraint("CK_Notifications_Type", "\"Type\" IN (1, 2, 3)");
+
+            // D7: the requested amount belongs to a refused Out movement (3) and only there —
+            // required on it, meaningless on any other type.
+            t.HasCheckConstraint(
+                "CK_Notifications_RequestedQuantity", "(\"Type\" = 3) = (\"RequestedQuantity\" IS NOT NULL)");
+
+            // Stock at the moment of the event; stock itself can never be negative.
+            t.HasCheckConstraint("CK_Notifications_Quantity", "\"Quantity\" >= 0");
+        });
     }
 }

@@ -27,6 +27,17 @@ internal static class PostgresText
     /// </summary>
     public const string TrigramOperators = "gin_trgm_ops";
 
+    /// <summary>
+    /// The name-uniqueness function created by the KategoriAdAnahtari migration:
+    /// <c>lower($1 COLLATE "tr-TR-x-icu")</c>. Turkish case folding only — no accent stripping,
+    /// unlike <see cref="FoldFunction"/> (D9c). Built from pg_catalog functions alone, so it also
+    /// works inside index builds, where PostgreSQL restricts the search_path.
+    /// </summary>
+    public const string NameKeyFunction = "f_name_key";
+
     /// <summary>The generated-column expression for a searched column.</summary>
     public static string Folded(string column) => $"{FoldFunction}(\"{column}\")";
+
+    /// <summary>The generated-column expression for a name-uniqueness key.</summary>
+    public static string Keyed(string column) => $"{NameKeyFunction}(\"{column}\")";
 }

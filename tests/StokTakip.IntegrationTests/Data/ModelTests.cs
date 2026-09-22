@@ -66,7 +66,9 @@ public sealed class ModelTests
             WHERE schemaname = 'public' AND indexdef LIKE 'CREATE UNIQUE INDEX%'
             """).ToListAsync(Ct);
 
-        Assert.Contains("UQ_Categories_Name", uniqueIndexes);
+        // D9c: the category key is the Turkish lower-case name, not the name as typed.
+        Assert.Contains("UQ_Categories_NameKey", uniqueIndexes);
+        Assert.DoesNotContain("UQ_Categories_Name", uniqueIndexes);
         Assert.Contains("UQ_Products_SKU", uniqueIndexes);
 
         // A supplier's name is a label, not its identity — two firms may share it (D9c).
