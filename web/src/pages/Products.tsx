@@ -18,6 +18,7 @@ import { PageHeader } from '../components/PageHeader'
 import { StatusChip } from '../components/StatusChip'
 import { StatTile } from '../components/StatTile'
 import { formatCurrency } from '../lib/format'
+import { stockStatus } from '../lib/stockStatus'
 import { Pager } from '../components/Pager'
 import { canonicalParams } from '../lib/urlParams'
 import { toggleExclusiveFilter } from '../lib/productFilters'
@@ -260,7 +261,7 @@ export default function Products() {
                   </tr>
                 ) : (
                   productsQuery.data!.items.map((p) => {
-                    const low = p.stockQuantity <= p.minStockLevel
+                    const status = stockStatus(p.stockQuantity, p.minStockLevel)
                     return (
                       <tr key={p.id} className={p.isActive ? undefined : 'row-muted'}>
                         <td>
@@ -271,8 +272,10 @@ export default function Products() {
                         <td>{p.supplierName}</td>
                         <td className="text-end">{formatCurrency(p.unitPrice)}</td>
                         <td className="text-end">
-                          {low ? (
-                            <StatusChip variant="warn">{p.stockQuantity} · Düşük</StatusChip>
+                          {status ? (
+                            <StatusChip variant={status.variant}>
+                              {p.stockQuantity} · {status.label}
+                            </StatusChip>
                           ) : (
                             p.stockQuantity
                           )}

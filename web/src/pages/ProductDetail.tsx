@@ -8,6 +8,7 @@ import { PageHeader } from '../components/PageHeader'
 import { StatusChip } from '../components/StatusChip'
 import { DeactivationNote } from '../components/DeactivationNote'
 import { formatCurrency, formatDateTime } from '../lib/format'
+import { stockStatus } from '../lib/stockStatus'
 
 function Field({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
@@ -41,7 +42,7 @@ export default function ProductDetail() {
   }
 
   const p = productQuery.data
-  const low = p.stockQuantity <= p.minStockLevel
+  const status = stockStatus(p.stockQuantity, p.minStockLevel)
 
   return (
     <>
@@ -71,7 +72,7 @@ export default function ProductDetail() {
             <Field label="Fiyat">{formatCurrency(p.unitPrice)}</Field>
             <Field label="Stok">
               <span className="tnum">{p.stockQuantity}</span>{' '}
-              {low && <StatusChip variant="warn">Düşük</StatusChip>}
+              {status && <StatusChip variant={status.variant}>{status.label}</StatusChip>}
               <span className="text-muted small ms-2">(min {p.minStockLevel})</span>
             </Field>
             <Field label="Stok Değeri">

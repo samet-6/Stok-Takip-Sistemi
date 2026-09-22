@@ -2,6 +2,7 @@ import { Table } from 'react-bootstrap'
 import { Link } from 'react-router'
 import type { ProductListDto } from '../types/api'
 import { formatCurrency } from '../lib/format'
+import { stockStatus } from '../lib/stockStatus'
 import { StatusChip } from './StatusChip'
 
 // Read-only product table shared by the Tedarikçi and Kategori detail pages. The one
@@ -37,7 +38,7 @@ export function ProductMiniTable({
             </tr>
           ) : (
             items.map((p) => {
-              const low = p.stockQuantity <= p.minStockLevel
+              const status = stockStatus(p.stockQuantity, p.minStockLevel)
               return (
                 <tr key={p.id} className={p.isActive ? undefined : 'row-muted'}>
                   <td>
@@ -51,8 +52,10 @@ export function ProductMiniTable({
                   </td>
                   <td className="text-end">{formatCurrency(p.unitPrice)}</td>
                   <td className="text-end">
-                    {low ? (
-                      <StatusChip variant="warn">{p.stockQuantity} · Düşük</StatusChip>
+                    {status ? (
+                      <StatusChip variant={status.variant}>
+                        {p.stockQuantity} · {status.label}
+                      </StatusChip>
                     ) : (
                       p.stockQuantity
                     )}
