@@ -7,6 +7,7 @@ import { ProductMiniTable } from './ProductMiniTable'
 import { MovementsTable } from './MovementsTable'
 import { Pager } from './Pager'
 import { StatTile } from './StatTile'
+import { SelectBox } from './SelectBox'
 import { formatCurrency, dayStartIso, dayEndIso } from '../lib/format'
 import { canonicalParams } from '../lib/urlParams'
 import type { MovementType } from '../types/api'
@@ -141,29 +142,33 @@ export function CatalogDetailView({
           {/* Filter bar */}
           <Row className="g-2 align-items-end mb-3">
             <Col xs={6} md="auto">
-              <Form.Label className="small text-muted mb-1">Tip</Form.Label>
-              <Form.Select
+              <Form.Label htmlFor="catalog-type-filter" className="small text-muted mb-1">
+                Tip
+              </Form.Label>
+              <SelectBox
+                id="catalog-type-filter"
                 value={typeFilter}
-                onChange={(e) => setParam('type', e.target.value === 'all' ? '' : e.target.value)}
-              >
-                <option value="all">Tümü</option>
-                <option value="In">Giriş</option>
-                <option value="Out">Çıkış</option>
-              </Form.Select>
+                onChange={(value) => setParam('type', value === 'all' ? '' : value)}
+                options={[
+                  { value: 'all', label: 'Tümü' },
+                  { value: 'In', label: 'Giriş' },
+                  { value: 'Out', label: 'Çıkış' },
+                ]}
+              />
             </Col>
             <Col xs={6} md="auto">
-              <Form.Label className="small text-muted mb-1">Ürün</Form.Label>
-              <Form.Select
+              <Form.Label htmlFor="catalog-product-filter" className="small text-muted mb-1">
+                Ürün
+              </Form.Label>
+              <SelectBox
+                id="catalog-product-filter"
                 value={productFilter}
-                onChange={(e) => setParam('productId', e.target.value)}
-              >
-                <option value="">Tüm ürünler</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Form.Select>
+                onChange={(value) => setParam('productId', value)}
+                options={[
+                  { value: '', label: 'Tüm ürünler' },
+                  ...products.map((p) => ({ value: String(p.id), label: p.name })),
+                ]}
+              />
             </Col>
             <Col xs={6} md="auto">
               <Form.Label className="small text-muted mb-1">Başlangıç</Form.Label>

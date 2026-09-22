@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +14,8 @@ import type {
 } from '../types/api'
 import { useToast } from '../components/toastContext'
 import { PageHeader } from '../components/PageHeader'
+import { SelectBox } from '../components/SelectBox'
+import { catalogOptions } from '../lib/catalogOptions'
 import { applyServerFieldErrors } from '../lib/formErrors'
 import { parseProblemDetails, problemMessage, hasFieldErrors } from '../lib/problemDetails'
 import { productSchema, type ProductFormValues } from '../lib/schemas'
@@ -90,6 +92,7 @@ export default function ProductForm() {
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -260,7 +263,9 @@ export default function ProductForm() {
           <Form.Label>Açıklama</Form.Label>
           <Form.Control
             as="textarea"
-            rows={2}
+            // One line keeps the whole form inside the window; a longer description scrolls
+            // inside the box.
+            rows={1}
             {...register('description')}
             isInvalid={!!errors.description}
           />
@@ -271,48 +276,58 @@ export default function ProductForm() {
 
         <Row>
           <Col md={6}>
-            <Form.Group className="mb-3" controlId="product-category">
-              <Form.Label>Kategori</Form.Label>
-              <Form.Select {...register('categoryId')} isInvalid={!!errors.categoryId}>
-                <option value="">Seçiniz…</option>
-                {categoriesQuery.data!.map((c) => {
-                  // Same rule as suppliers: a passive category cannot be picked, but a product
-                  // already sitting in one stays editable instead of losing its category.
-                  const isCurrent = c.id === currentCategoryId
-                  return (
-                    <option key={c.id} value={c.id} disabled={!c.isActive && !isCurrent}>
-                      {c.name}
-                      {!c.isActive ? ' (Pasif)' : ''}
-                    </option>
-                  )
-                })}
-              </Form.Select>
-              <Form.Control.Feedback type="invalid">
-                {errors.categoryId?.message}
-              </Form.Control.Feedback>
+            <Form.Group className="mb-3">
+              <Form.Label htmlFor="product-category">Kategori</Form.Label>
+              <Controller
+                name="categoryId"
+                control={control}
+                render={({ field }) => (
+                  <SelectBox
+                    id="product-category"
+                    options={catalogOptions(categoriesQuery.data!, currentCategoryId)}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Seçiniz…"
+                    isInvalid={!!errors.categoryId}
+                  />
+                )}
+              />
+              {/* d-block: Bootstrap only reveals .invalid-feedback next to an .is-invalid
+                  sibling, and here the invalid control sits inside the dropdown wrapper.
+                  Rendered only with an error, or the empty line would still take up height. */}
+              {errors.categoryId && (
+                <Form.Control.Feedback type="invalid" className="d-block">
+                  {errors.categoryId.message}
+                </Form.Control.Feedback>
+              )}
             </Form.Group>
           </Col>
           <Col md={6}>
-            <Form.Group className="mb-3" controlId="product-supplier">
-              <Form.Label>Tedarikçi</Form.Label>
-              <Form.Select {...register('supplierId')} isInvalid={!!errors.supplierId}>
-                <option value="">Seçiniz…</option>
-                {suppliersQuery.data!.map((s) => {
-                  // Passive suppliers are disabled — except the product's current one in
-                  // edit mode (a product whose supplier went passive stays editable).
-                  const isCurrent = s.id === currentSupplierId
-                  const disabled = !s.isActive && !isCurrent
-                  return (
-                    <option key={s.id} value={s.id} disabled={disabled}>
-                      {s.name}
-                      {!s.isActive ? ' (Pasif)' : ''}
-                    </option>
-                  )
-                })}
-              </Form.Select>
-              <Form.Control.Feedback type="invalid">
-                {errors.supplierId?.message}
-              </Form.Control.Feedback>
+            <Form.Group className="mb-3">
+              <Form.Label htmlFor="product-supplier">Tedarikçi</Form.Label>
+              <Controller
+                name="supplierId"
+                control={control}
+                render={({ field }) => (
+                  <SelectBox
+                    id="product-supplier"
+                    // The e-mail tells apart two suppliers sharing a name (D9c).
+                    options={catalogOptions(suppliersQuery.data!, currentSupplierId, (s) => s.contactEmail)}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Seçiniz…"
+                    isInvalid={!!errors.supplierId}
+                  />
+                )}
+              />
+              {/* d-block and only-with-an-error: same reasons as the category field above. */}
+              {errors.supplierId && (
+                <Form.Control.Feedback type="invalid" className="d-block">
+                  {errors.supplierId.message}
+                </Form.Control.Feedback>
+              )}
             </Form.Group>
           </Col>
         </Row>

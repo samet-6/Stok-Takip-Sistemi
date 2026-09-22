@@ -94,6 +94,11 @@ body {
   border-color: var(--brand-2);
   box-shadow: 0 0 0 0.2rem rgba(44, 84, 136, 0.18);
 }
+/* Text areas keep the size the layout gives them — no corner drag handle. A box dragged
+   taller pushed forms past the window; longer text scrolls inside the box instead. */
+textarea.form-control {
+  resize: none;
+}
 /* Radios / checkboxes / switches. Bootstrap leaves these on the global border
    colour (our faint hairline) and its own default blue — both read washed-out
    on the slate surfaces, so the control gets an explicitly visible border

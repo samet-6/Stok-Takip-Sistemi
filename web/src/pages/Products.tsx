@@ -17,6 +17,7 @@ import { ConfirmModal } from '../components/ConfirmModal'
 import { PageHeader } from '../components/PageHeader'
 import { StatusChip } from '../components/StatusChip'
 import { StatTile } from '../components/StatTile'
+import { SelectBox } from '../components/SelectBox'
 import { formatCurrency } from '../lib/format'
 import { stockStatus } from '../lib/stockStatus'
 import { Pager } from '../components/Pager'
@@ -189,23 +190,21 @@ export default function Products() {
           />
         </Col>
         <Col xs={12} md={3}>
-          <Form.Select
+          <SelectBox
             value={categoryId}
-            onChange={(e) =>
+            onChange={(value) =>
               setFilter((p) => {
-                if (e.target.value) p.set('categoryId', e.target.value)
+                if (value) p.set('categoryId', value)
                 else p.delete('categoryId')
                 return p
               })
             }
-          >
-            <option value="">Tüm kategoriler</option>
-            {categoriesQuery.data?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Form.Select>
+            options={[
+              { value: '', label: 'Tüm kategoriler' },
+              ...(categoriesQuery.data ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
+          />
+
         </Col>
         <Col xs="auto">
           <Form.Check
