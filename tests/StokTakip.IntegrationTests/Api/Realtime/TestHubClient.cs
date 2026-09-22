@@ -65,7 +65,10 @@ internal sealed class TestHubClient : IAsyncDisposable
         if (response.Trim() != "{}")
             throw new InvalidOperationException($"Beklenmeyen el sikisma yaniti: {response}");
 
-        client._readLoop = Task.Run(client.ReadLoopAsync);
+        // CancellationToken.None on purpose: the read loop outlives this call and is owned by the
+        // client's own _reading source, which DisposeAsync cancels and then awaits. Handing it the
+        // connect token would tie the loop's life to a scope that ends here.
+        client._readLoop = Task.Run(client.ReadLoopAsync, CancellationToken.None);
 
         return client;
     }
@@ -94,7 +97,7 @@ internal sealed class TestHubClient : IAsyncDisposable
     /// signal did <b>not</b> arrive — a negative checked with no settling time proves only that the
     /// test was faster than the network.
     /// </summary>
-    public Task SettleAsync(CancellationToken ct) => Task.Delay(250, ct);
+    public static Task SettleAsync(CancellationToken ct) => Task.Delay(250, ct);
 
     private async Task SendAsync(string payload, CancellationToken ct)
         => await _socket.SendAsync(

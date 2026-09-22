@@ -19,12 +19,18 @@ namespace StokTakip.UnitTests.Architecture;
 /// different methods, but only the source says which one an author chose on purpose.
 /// </para>
 /// </summary>
-public sealed class CasingPurityTests
+public sealed partial class CasingPurityTests
 {
     /// <summary>ToLower()/ToUpper() with no argument. The Invariant variants are different method
-    /// names, so they do not match; an explicit CultureInfo argument does not either.</summary>
-    private static readonly Regex CultureSensitiveCasing =
-        new(@"\.To(Lower|Upper)\(\s*\)", RegexOptions.Compiled);
+    /// names, so they do not match; an explicit CultureInfo argument does not either.
+    /// <para>
+    /// Source-generated rather than a <c>new Regex(...)</c> field: the pattern is turned into C#
+    /// at compile time, so a typo in it becomes a build error instead of a
+    /// <c>TypeInitializationException</c> thrown from a static initialiser — which is where a
+    /// broken pattern would surface here, with the real cause wrapped one layer down.
+    /// </para></summary>
+    [GeneratedRegex(@"\.To(Lower|Upper)\(\s*\)")]
+    private static partial Regex CultureSensitiveCasing();
 
     [Fact]
     public void Uretim_kodunda_kulture_duyarli_ToLower_ToUpper_yok()
@@ -45,7 +51,7 @@ public sealed class CasingPurityTests
         var offenders = files
             .SelectMany(path => File.ReadLines(path)
                 .Select((line, index) => (path, line, number: index + 1))
-                .Where(entry => CultureSensitiveCasing.IsMatch(StripComment(entry.line)))
+                .Where(entry => CultureSensitiveCasing().IsMatch(StripComment(entry.line)))
                 .Select(entry => $"{Path.GetFileName(entry.path)}:{entry.number} -> {entry.line.Trim()}"))
             .ToArray();
 

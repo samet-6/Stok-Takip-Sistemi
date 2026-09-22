@@ -55,7 +55,7 @@ public sealed class UserService : IUserService
         await _userManager.AddToRoleAsync(user, EmployeeRole);
 
         return new UserListDto(
-            user.Id, user.Email!, user.FullName, new[] { EmployeeRole },
+            user.Id, user.Email, user.FullName, new[] { EmployeeRole },
             user.IsActive, user.CreatedAt, user.DeactivatedAt);
     }
 

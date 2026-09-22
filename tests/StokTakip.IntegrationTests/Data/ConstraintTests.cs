@@ -150,7 +150,7 @@ public sealed class ConstraintTests
         Assert.True(await db.StockMovements.AnyAsync(m => m.Id == id, Ct));
     }
 
-    private async Task<(int CategoryId, int SupplierId)> SeedIdsAsync(AppDbContext db) =>
+    private static async Task<(int CategoryId, int SupplierId)> SeedIdsAsync(AppDbContext db) =>
         (await db.Categories.Select(c => c.Id).FirstAsync(Ct),
          await db.Suppliers.Select(s => s.Id).FirstAsync(Ct));
 

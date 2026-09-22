@@ -159,7 +159,6 @@ public sealed class StockMovementService : IStockMovementService
                 // gets its own SaveChanges, and an attached movement would ride along with it.
                 Detach(movement);
                 Detach(stagedNotification);
-                stagedNotification = null;
 
                 await EnsureMovementAllowedAsync(product, request, userId, ct);
 

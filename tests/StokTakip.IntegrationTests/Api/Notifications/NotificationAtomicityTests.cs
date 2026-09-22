@@ -22,6 +22,9 @@ public sealed class NotificationAtomicityTests : IAsyncLifetime
 {
     private readonly TestDatabaseFixture _db;
 
+    /// <summary>The two quantities a real threshold crossing can report; see the assertion.</summary>
+    private static readonly int[] LegitimateCrossingQuantities = [3, 4];
+
     public NotificationAtomicityTests(TestDatabaseFixture db) => _db = db;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -151,7 +154,7 @@ public sealed class NotificationAtomicityTests : IAsyncLifetime
 
         // Either order is legitimate — 6 first crosses at 4, 1 first crosses at 3 — so the quantity
         // is pinned to the two values a real crossing can produce, not to one of them.
-        Assert.Contains(notification.Quantity, new[] { 3, 4 });
+        Assert.Contains(notification.Quantity, LegitimateCrossingQuantities);
     }
 
     /// <summary>Movements beyond the opening one written by <c>initialStock</c>.</summary>

@@ -1,10 +1,8 @@
-using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.SignalR;
@@ -108,84 +106,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = "role"
         };
 
-        options.Events = new JwtBearerEvents
-        {
-            // The browser's WebSocket API cannot set an Authorization header on the
-            // handshake, so the hub identity must travel in the query string. Accepted
-            // only under /hubs — and OnTokenValidated makes sure the only thing that
-            // works there is a short-lived ticket, never the session token.
-            OnMessageReceived = context =>
-            {
-                if (context.HttpContext.Request.Path.StartsWithSegments(HubRoutes.Prefix))
-                {
-                    var accessToken = context.Request.Query["access_token"];
-                    if (!string.IsNullOrEmpty(accessToken))
-                        context.Token = accessToken;
-                }
-
-                return Task.CompletedTask;
-            },
-
-            // Per-request session validation: the token's SecurityStamp must
-            // match the DB and the user must still be active — else the token is rejected
-            // (401 via OnChallenge). This is what makes admin password reset / email change /
-            // deactivation take effect instantly instead of waiting for token expiry.
-            OnTokenValidated = async context =>
-            {
-                var principal = context.Principal!;
-
-                // Two-way scope fence: a hub ticket is only good for /hubs, and /hubs
-                // accepts nothing else. The second half is what keeps the 8-hour session
-                // token out of query strings — and therefore out of access logs — as a
-                // server-enforced invariant rather than client-side good manners.
-                // Checked before the DB round trip so a misrouted token costs no query.
-                var isHubPath = context.HttpContext.Request.Path.StartsWithSegments(HubRoutes.Prefix);
-                var isHubTicket =
-                    principal.FindFirstValue(TokenService.ScopeClaimType) == TokenService.HubScope;
-
-                if (isHubPath != isHubTicket)
-                {
-                    context.Fail("Bilet bu yol için geçerli değil.");
-                    return;
-                }
-
-                var userId = principal.FindFirstValue("sub");
-                var tokenStamp = principal.FindFirstValue(TokenService.SecurityStampClaimType);
-
-                var userManager = context.HttpContext.RequestServices
-                    .GetRequiredService<UserManager<ApplicationUser>>();
-                var user = userId is null ? null : await userManager.FindByIdAsync(userId);
-
-                if (user is null || !user.IsActive || user.SecurityStamp != tokenStamp)
-                    context.Fail("Oturum geçersiz.");
-            },
-            OnChallenge = async context =>
-            {
-                context.HandleResponse();
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                var problem = new ProblemDetails
-                {
-                    Status = StatusCodes.Status401Unauthorized,
-                    Title = "Kimlik doğrulama gerekli."
-                };
-                // The content type has to travel with the write: WriteAsJsonAsync sets its own
-                // ("application/json") and would overwrite anything assigned to the response
-                // beforehand. Every other error in the API is RFC 7807, these two included.
-                await context.Response.WriteAsJsonAsync(
-                    problem, options: null, contentType: "application/problem+json");
-            },
-            OnForbidden = async context =>
-            {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                var problem = new ProblemDetails
-                {
-                    Status = StatusCodes.Status403Forbidden,
-                    Title = "Bu işlem için yetkiniz yok."
-                };
-                await context.Response.WriteAsJsonAsync(
-                    problem, options: null, contentType: "application/problem+json");
-            }
-        };
+        options.Events = JwtBearerEventHandlers.Create();
     });
 
 builder.Services.AddAuthorization();
@@ -251,4 +172,4 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<StokHub>(HubRoutes.Stok);
 
-app.Run();
+await app.RunAsync();

@@ -11,17 +11,28 @@ namespace StokTakip.Api.Realtime;
 /// inbound surface at all, and not having one means there is none to secure.
 /// </summary>
 [Authorize]
-public sealed class StokHub : Hub
+public sealed partial class StokHub : Hub
 {
     private readonly ILogger<StokHub> _logger;
 
     public StokHub(ILogger<StokHub> logger) => _logger = logger;
 
+    // Source-generated logging: the generated method checks IsEnabled before touching its
+    // arguments, so a disabled level costs nothing and the message template is verified at
+    // compile time instead of at the first connection.
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Hub connected: user {UserId}, connection {ConnectionId}")]
+    private partial void LogConnected(string? userId, string connectionId);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Hub disconnected: user {UserId}, connection {ConnectionId}")]
+    private partial void LogDisconnected(Exception? exception, string? userId, string connectionId);
+
     public override async Task OnConnectedAsync()
     {
-        _logger.LogInformation(
-            "Hub connected: user {UserId}, connection {ConnectionId}",
-            Context.UserIdentifier, Context.ConnectionId);
+        LogConnected(Context.UserIdentifier, Context.ConnectionId);
 
         // Admins join a group so notification signals reach only them. Membership is decided
         // from the ticket's own role claim — the client never asks to join, so there is no
@@ -36,10 +47,7 @@ public sealed class StokHub : Hub
     {
         // exception is null on a clean stop, set on a dropped connection — one log line
         // covers both, and the reconnect that follows shows up as a new connect entry.
-        _logger.LogInformation(
-            exception,
-            "Hub disconnected: user {UserId}, connection {ConnectionId}",
-            Context.UserIdentifier, Context.ConnectionId);
+        LogDisconnected(exception, Context.UserIdentifier, Context.ConnectionId);
 
         return base.OnDisconnectedAsync(exception);
     }

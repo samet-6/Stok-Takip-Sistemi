@@ -78,7 +78,7 @@ public sealed class HubConnectionTests : IAsyncLifetime
 
         await adminClient.WaitForAsync(RealtimeEvents.NotificationsChanged, Ct);
         await calisanClient.WaitForAsync(RealtimeEvents.ProductChanged, Ct);
-        await calisanClient.SettleAsync(Ct);
+        await TestHubClient.SettleAsync(Ct);
 
         Assert.DoesNotContain(
             calisanClient.Received,
@@ -118,7 +118,7 @@ public sealed class HubConnectionTests : IAsyncLifetime
 
         // Addressed to one user, so the other connection must stay silent — otherwise the provider
         // could be returning a constant and this would still look like a delivery.
-        await calisanClient.SettleAsync(Ct);
+        await TestHubClient.SettleAsync(Ct);
         Assert.Empty(calisanClient.Received);
     }
 
@@ -136,12 +136,17 @@ public sealed class HubConnectionTests : IAsyncLifetime
         var logs = CapturedLogs.Attach(_db.Factory.Services, typeof(StokHub));
 
         var client = await ConnectAsync(calisan);
-        await logs.WaitForAsync(
-            line => line.StartsWith("Hub connected:") && line.Contains(userId), Ct);
+        // The predicate only locates the line; the identifier it carries is what the assertion
+        // checks. Folding both into the predicate reports a wrong identifier as "the line was
+        // never written" — which is the one thing that did not happen.
+        var connected = await logs.WaitForAsync(
+            line => line.StartsWith("Hub connected:", StringComparison.Ordinal), Ct);
+        Assert.Contains(userId, connected, StringComparison.Ordinal);
 
         await client.DisposeAsync();
-        await logs.WaitForAsync(
-            line => line.StartsWith("Hub disconnected:") && line.Contains(userId), Ct);
+        var disconnected = await logs.WaitForAsync(
+            line => line.StartsWith("Hub disconnected:", StringComparison.Ordinal), Ct);
+        Assert.Contains(userId, disconnected, StringComparison.Ordinal);
     }
 
     private async Task<TestHubClient> ConnectAsync(HttpClient client)

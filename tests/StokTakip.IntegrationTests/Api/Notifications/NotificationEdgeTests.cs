@@ -278,11 +278,11 @@ public sealed class NotificationEdgeTests : IAsyncLifetime
         Assert.Single(await NotificationScratch.ForProductAsync(_db, second.Id, Ct));
     }
 
-    private async Task Out(HttpClient admin, int productId, int quantity)
+    private static async Task Out(HttpClient admin, int productId, int quantity)
         => (await NotificationScratch.TakeOutAsync(admin, productId, quantity, Ct))
             .EnsureSuccessStatusCode();
 
-    private async Task In(HttpClient admin, int productId, int quantity)
+    private static async Task In(HttpClient admin, int productId, int quantity)
         => (await NotificationScratch.PutInAsync(admin, productId, quantity, Ct))
             .EnsureSuccessStatusCode();
 

@@ -204,19 +204,28 @@ public static class DbSeeder
 
         var products = new List<Product?>
         {
-            Build("Kablosuz Mouse", "MOUSE-001", el, anadolu, 349.90m, 5, true, new[] { Init(50), Sale(8) }),
-            Build("Mekanik Klavye", "KEYB-001", el, anadolu, 899.00m, 5, true, new[] { Init(30), Sale(5) }),
-            Build("USB-C Kablo", "USBC-001", el, anadolu, 79.90m, 10, true, new[] { Init(20), Sale(12) }),
-            Build("Taşınabilir SSD 1TB", "SSD1-001", el, anadolu, 1899.00m, 3, true, new[] { Init(5), Sale(3) }),
-            Build("Filtre Kahve 1kg", "COFF-001", gd, marmara, 249.00m, 8, true, new[] { Init(60), Sale(10), AddIn(5) }),
-            Build("Yeşil Çay 500g", "TEA-001", gd, marmara, 129.90m, 8, true, new[] { Init(40), Sale(6) }),
-            Build("Zeytinyağı 1L", "OLIV-001", gd, marmara, 399.00m, 6, true, new[] { Init(10), Sale(5) }),
-            Build("A4 Fotokopi Kağıdı", "PAPR-001", kt, ege, 189.00m, 10, true, new[] { Init(100), Sale(20) }),
-            Build("Tükenmez Kalem 50'li", "PEN-001", kt, ege, 149.90m, 12, true, new[] { Init(80) }),
-            Build("Yüzey Temizleyici 750ml", "CLEN-001", tm, marmara, 59.90m, 10, true, new[] { Init(50) }),
-            Build("Çöp Poşeti 30L", "TRSH-001", tm, anadolu, 39.90m, 15, true, new[] { Init(120) }),
-            Build("Bulaşık Deterjanı 1.5L", "DISH-001", tm, marmara, 89.90m, 8, false, new[] { Init(30), Sale(10) })
+            Build("Kablosuz Mouse", "MOUSE-001", el, anadolu, 349.90m, 5, new[] { Init(50), Sale(8) }),
+            Build("Mekanik Klavye", "KEYB-001", el, anadolu, 899.00m, 5, new[] { Init(30), Sale(5) }),
+            Build("USB-C Kablo", "USBC-001", el, anadolu, 79.90m, 10, new[] { Init(20), Sale(12) }),
+            Build("Taşınabilir SSD 1TB", "SSD1-001", el, anadolu, 1899.00m, 3, new[] { Init(5), Sale(3) }),
+            Build("Filtre Kahve 1kg", "COFF-001", gd, marmara, 249.00m, 8, new[] { Init(60), Sale(10), AddIn(5) }),
+            Build("Yeşil Çay 500g", "TEA-001", gd, marmara, 129.90m, 8, new[] { Init(40), Sale(6) }),
+            Build("Zeytinyağı 1L", "OLIV-001", gd, marmara, 399.00m, 6, new[] { Init(10), Sale(5) }),
+            Build("A4 Fotokopi Kağıdı", "PAPR-001", kt, ege, 189.00m, 10, new[] { Init(100), Sale(20) }),
+            Build("Tükenmez Kalem 50'li", "PEN-001", kt, ege, 149.90m, 12, new[] { Init(80) }),
+            Build("Yüzey Temizleyici 750ml", "CLEN-001", tm, marmara, 59.90m, 10, new[] { Init(50) }),
+            Build("Çöp Poşeti 30L", "TRSH-001", tm, anadolu, 39.90m, 15, new[] { Init(120) }),
+            Build("Bulaşık Deterjanı 1.5L", "DISH-001", tm, marmara, 89.90m, 8, new[] { Init(30), Sale(10) })
         };
+
+        // Everything above ships active; this one product does not, so the passive-row states in
+        // the UI (struck-through name, "Pasif" badge, movement form refusing it) have something
+        // real to show in a fresh database. Kept out of the table so the exception stays visible
+        // instead of hiding as one 'false' among eleven 'true's.
+        // Silent when the row was not built — the warning inside Build already said why.
+        var inactive = products.Find(p => p?.SKU == "DISH-001");
+        if (inactive is not null)
+            inactive.IsActive = false;
 
         context.Products.AddRange(products.OfType<Product>());
         await context.SaveChangesAsync();
@@ -226,7 +235,7 @@ public static class DbSeeder
         // anyway because the seeder runs during startup: whatever goes wrong here must end up in
         // the log, never as an exception that keeps the application from booting.
         Product? Build(string name, string sku, string catName, string supName,
-            decimal price, int min, bool active, (StockMovementType type, int qty, string? note)[] moves)
+            decimal price, int min, (StockMovementType type, int qty, string? note)[] moves)
         {
             if (!cats.TryGetValue(catName, out var categoryId) ||
                 !sups.TryGetValue(supName, out var supplierId))
@@ -246,7 +255,10 @@ public static class DbSeeder
                 SupplierId = supplierId,
                 UnitPrice = price,
                 MinStockLevel = min,
-                IsActive = active,
+                // Written explicitly, not left to the CLR default: HasDefaultValue(true) makes
+                // 'true' this property's EF sentinel, so an untouched (false) property is what
+                // gets sent to the database — the opposite of what omitting it looks like.
+                IsActive = true,
                 StockQuantity = 0
             };
 

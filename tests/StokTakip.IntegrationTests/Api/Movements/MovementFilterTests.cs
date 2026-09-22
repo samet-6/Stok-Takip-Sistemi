@@ -273,7 +273,7 @@ public sealed class MovementFilterTests : IAsyncLifetime
     private static string IsoBare(DateTime utc)
         => Uri.EscapeDataString(utc.ToString("yyyy-MM-ddTHH:mm:ss.fffffff"));
 
-    private async Task<MovementScratch.MovementPage> GetAsync(HttpClient client, string query)
+    private static async Task<MovementScratch.MovementPage> GetAsync(HttpClient client, string query)
         => (await client.GetFromJsonAsync<MovementScratch.MovementPage>(
             $"/api/stock-movements?{query}", Ct))!;
 

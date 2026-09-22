@@ -64,7 +64,7 @@ public sealed class NotificationRealtimeTests : IAsyncLifetime
         // The product signal is the control: it proves the request reached the notifier, so the
         // absent notification signal is a decision rather than a delivery that never happened.
         await client.WaitForAsync(RealtimeEvents.ProductChanged, Ct);
-        await client.SettleAsync(Ct);
+        await TestHubClient.SettleAsync(Ct);
 
         Assert.DoesNotContain(client.Received, s => s.Target == RealtimeEvents.NotificationsChanged);
     }
@@ -148,7 +148,7 @@ public sealed class NotificationRealtimeTests : IAsyncLifetime
         var empty = await admin.DeleteAsync("/api/notifications/read", Ct);
         Assert.Equal(HttpStatusCode.NoContent, empty.StatusCode);
 
-        await client.SettleAsync(Ct);
+        await TestHubClient.SettleAsync(Ct);
         Assert.DoesNotContain(client.Received, s => s.Target == RealtimeEvents.NotificationsChanged);
 
         (await admin.DeleteAsync($"/api/notifications/{notification.Id}", Ct)).EnsureSuccessStatusCode();

@@ -52,25 +52,30 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
 
     private void ApplyAudit()
     {
+        // One timestamp for the whole SaveChanges: rows written together carry the same instant,
+        // so an ordering can never be read into what is actually a single transaction.
         var now = DateTime.UtcNow;
         foreach (var entry in ChangeTracker.Entries())
-        {
-            if (entry.State == EntityState.Added && entry.Entity is IHasCreatedAt created)
-                created.CreatedAt = now;
+            ApplyAuditTo(entry, now);
+    }
 
-            if (entry.State == EntityState.Added && entry.Entity is IAuditable addedAuditable)
-                addedAuditable.UpdatedAt = now;
+    private static void ApplyAuditTo(EntityEntry entry, DateTime now)
+    {
+        if (entry.State == EntityState.Added && entry.Entity is IHasCreatedAt created)
+            created.CreatedAt = now;
 
-            if (entry.State == EntityState.Modified && entry.Entity is IAuditable modifiedAuditable)
-                modifiedAuditable.UpdatedAt = now;
+        if (entry.State == EntityState.Added && entry.Entity is IAuditable addedAuditable)
+            addedAuditable.UpdatedAt = now;
 
-            // "Since when is this out of use" is one question, so it gets one answer, written
-            // here instead of by each service that happens to flip the flag. Only a real
-            // transition writes: an edit that leaves IsActive alone must not move the date,
-            // which is why the property — not the entity — is asked whether it changed.
-            if (entry.Entity is IDeactivatable deactivatable && ChangedActivity(entry))
-                deactivatable.DeactivatedAt = deactivatable.IsActive ? null : now;
-        }
+        if (entry.State == EntityState.Modified && entry.Entity is IAuditable modifiedAuditable)
+            modifiedAuditable.UpdatedAt = now;
+
+        // "Since when is this out of use" is one question, so it gets one answer, written
+        // here instead of by each service that happens to flip the flag. Only a real
+        // transition writes: an edit that leaves IsActive alone must not move the date,
+        // which is why the property — not the entity — is asked whether it changed.
+        if (entry.Entity is IDeactivatable deactivatable && ChangedActivity(entry))
+            deactivatable.DeactivatedAt = deactivatable.IsActive ? null : now;
     }
 
     private static bool ChangedActivity(EntityEntry entry) => entry.State switch

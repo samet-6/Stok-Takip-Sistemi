@@ -119,7 +119,7 @@ public sealed class SignalDisciplineTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
         await client.WaitForAsync(RealtimeEvents.NotificationsChanged, Ct);
-        await client.SettleAsync(Ct);
+        await TestHubClient.SettleAsync(Ct);
 
         Assert.DoesNotContain(client.Received, s => s.Target == RealtimeEvents.ProductChanged);
     }
@@ -186,7 +186,7 @@ public sealed class SignalDisciplineTests : IAsyncLifetime
         var control = await CreateProductAsync(admin, $"CTRL-{productId}", initialStock: 1);
 
         await client.WaitForAsync(RealtimeEvents.ProductChanged, Ct);
-        await client.SettleAsync(Ct);
+        await TestHubClient.SettleAsync(Ct);
 
         Assert.Contains(
             client.Received,

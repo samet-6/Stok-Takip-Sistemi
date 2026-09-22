@@ -22,9 +22,11 @@ internal static class TestScratch
 
         // Case-insensitive on purpose. SKUs are normalised to upper case on the way in, so this
         // never matters in normal operation — but the sweep must not depend on the very rule
-        // some of these tests exist to break.
+        // some of these tests exist to break. ILIKE rather than ToUpper().StartsWith() because
+        // this is an expression tree: the StringComparison overloads the analyzer suggests are
+        // not translatable, and the project already speaks EF.Functions elsewhere.
         var productIds = await context.Products
-            .Where(p => p.SKU.ToUpper().StartsWith(SkuPrefix))
+            .Where(p => EF.Functions.ILike(p.SKU, SkuPrefix + "%"))
             .Select(p => p.Id)
             .ToListAsync(ct);
 
