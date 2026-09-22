@@ -22,6 +22,7 @@ _ReSharper*/
 # Test / coverage
 TestResults/
 artifacts/
+coverage/
 coverage*.json
 coverage*.xml
 *.coverage
@@ -64,6 +65,11 @@ appsettings.Development.json
 
 # ===== Docker =====
 docker-compose.override.yml
+
+# ===== SonarQube (yerel analiz aracı, repoya girmez) =====
+sonar/
+.sonarqube/
+.scannerwork/
 
 # ===== OS =====
 Thumbs.db

@@ -31,5 +31,24 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      // lcov is what SonarQube reads (sonar.javascript.lcov.reportPaths); text-summary keeps
+      // the number visible in the terminal without printing a per-file table.
+      reporter: ['text-summary', 'lcov'],
+      reportsDirectory: './coverage',
+      // `include` is what makes untested files count as 0% instead of vanishing from the
+      // denominator — a coverage number that ignores untested files flatters itself. (The
+      // old `all: true` switch is gone in vitest 4; reporting every included file is the
+      // default now, so naming the include glob is the whole job.)
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/test/**',
+        'src/**/*.d.ts',
+        // Composition roots: wiring with no branches of its own, and covering them would
+        // mean booting the whole app in jsdom for no assertion.
+        'src/main.tsx',
+      ],
+    },
   },
 })

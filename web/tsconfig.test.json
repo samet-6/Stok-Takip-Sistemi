@@ -5,7 +5,10 @@
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
-    "types": ["vite/client", "vitest/globals"]
+    /* "node" is here for the tests that read a file to prove two sides agree — the shared
+       password vectors in passwordPolicy.test.ts use node:fs/node:path. @types/node is
+       already a devDependency; only this list was missing it. */
+    "types": ["vite/client", "vitest/globals", "node"]
   },
   "include": ["src"],
   "exclude": []
