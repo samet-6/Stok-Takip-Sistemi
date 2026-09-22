@@ -46,16 +46,18 @@ services:
   web:
     build: ./web
     ports:
-      - "3000:80"
+      # 8080 on the container side: the web image runs nginx as a non-root user on the
+      # unprivileged image's own port. The host-facing port is unchanged.
+      - "3000:8080"
     depends_on:
       - api
-    # nginx:alpine has busybox wget; no extra package needed. The e2e service waits on
-    # this instead of racing the container's startup.
+    # The nginx alpine image has busybox wget; no extra package needed. The e2e service waits
+    # on this instead of racing the container's startup.
     # 127.0.0.1, NOT localhost: inside the image `localhost` resolves to ::1 only, while
-    # nginx.conf says `listen 80;` (IPv4). Measured: wget to localhost gets "Connection
+    # nginx.conf says `listen 8080;` (IPv4). Measured: wget to localhost gets "Connection
     # refused", to 127.0.0.1 it succeeds — the container-side twin of the Vite note in CLAUDE.md.
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -68,8 +70,9 @@ services:
     profiles: ["e2e"]
     build: ./e2e
     environment:
-      # Konteyner ağında web nginx'i 80'de dinliyor; 3000 yalnız host tarafındaki eşleme.
-      E2E_BASE_URL: http://web
+      # Konteyner ağında web nginx'i 8080'de dinliyor (root olmayan imajın kendi portu);
+      # 3000 yalnız host tarafındaki eşleme.
+      E2E_BASE_URL: http://web:8080
       CI: "true"
     depends_on:
       web:
