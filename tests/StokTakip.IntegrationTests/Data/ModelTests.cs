@@ -55,7 +55,7 @@ public sealed class ModelTests
     }
 
     [Fact]
-    public async Task Uc_unique_index_veritabaninda_mevcut()
+    public async Task Katalog_unique_indexleri_veritabaninda_mevcut()
     {
         await using var db = _db.CreateContext();
 
@@ -68,11 +68,13 @@ public sealed class ModelTests
 
         Assert.Contains("UQ_Categories_Name", uniqueIndexes);
         Assert.Contains("UQ_Products_SKU", uniqueIndexes);
-        Assert.Contains("UQ_Suppliers_Name", uniqueIndexes);
+
+        // A supplier's name is a label, not its identity — two firms may share it (D9c).
+        Assert.DoesNotContain("UQ_Suppliers_Name", uniqueIndexes);
 
         // Guard: a plain index must not show up here. Without it, a filter that quietly stopped
-        // selecting on uniqueness would return every index and the three checks above would pass
-        // even if none of those indexes were unique.
+        // selecting on uniqueness would return every index and the checks above would pass even
+        // if none of those indexes were unique.
         Assert.DoesNotContain("IX_StockMovements_ProductId", uniqueIndexes);
     }
 }

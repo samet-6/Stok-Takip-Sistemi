@@ -43,9 +43,6 @@ public sealed class SupplierService : ISupplierService
 
     public async Task<SupplierDto> CreateAsync(CreateSupplierRequest request, CancellationToken ct)
     {
-        if (await _db.Suppliers.AnyAsync(s => s.Name == request.Name, ct))
-            throw new ConflictException("Bu tedarikçi adı zaten kayıtlı");
-
         var supplier = new Supplier
         {
             Name = request.Name,
@@ -68,9 +65,6 @@ public sealed class SupplierService : ISupplierService
     {
         var supplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct)
             ?? throw new NotFoundException("Tedarikçi bulunamadı");
-
-        if (await _db.Suppliers.AnyAsync(s => s.Id != id && s.Name == request.Name, ct))
-            throw new ConflictException("Bu tedarikçi adı zaten kayıtlı");
 
         supplier.Name = request.Name;
         supplier.ContactEmail = request.ContactEmail;

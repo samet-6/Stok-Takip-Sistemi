@@ -17,7 +17,8 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.Address).HasMaxLength(300);
         builder.Property(s => s.IsActive).HasDefaultValue(true);
 
-        builder.HasIndex(s => s.Name).IsUnique().HasDatabaseName("UQ_Suppliers_Name");
+        // No name uniqueness (D9c): the Id is the identity and the name is a label — two firms
+        // may share one and are told apart by their contact details.
 
         // Product search also matches on the supplier name — same search key as everywhere else.
         builder.Property<string>(SearchText.NameFolded)

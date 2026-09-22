@@ -104,16 +104,54 @@ public sealed class CatalogTests
         Assert.Equal(4, await CountAsync(db => db.Categories.CountAsync(Ct)));
     }
 
+    /// <summary>
+    /// Two firms may share a trading name: the Id is the identity, the contact details tell them
+    /// apart. The extra row is removed at the end so the seed counts T1 pins stay put.
+    /// </summary>
     [Fact]
-    public async Task Ayni_adla_ikinci_tedarikci_409_aliyor()
+    public async Task Ayni_adla_ikinci_tedarikci_acilabiliyor()
     {
         using var admin = await _db.Factory.AsAdminAsync(Ct);
 
         var response = await admin.PostAsJsonAsync(
             "/api/suppliers", new { name = SeedSupplierName, contactEmail = "baska@t3.local" }, Ct);
+        var created = response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<Supplier>(Ct)
+            : null;
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(3, await CountAsync(db => db.Suppliers.CountAsync(Ct)));
+        try
+        {
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            Assert.Equal(2, await CountAsync(db => db.Suppliers.CountAsync(s => s.Name == SeedSupplierName, Ct)));
+        }
+        finally
+        {
+            if (created is not null)
+                await admin.DeleteAsync($"/api/suppliers/{created.Id}", Ct);
+        }
+    }
+
+    [Fact]
+    public async Task Tedarikci_var_olan_bir_ada_yeniden_adlandirilabiliyor()
+    {
+        using var admin = await _db.Factory.AsAdminAsync(Ct);
+        var response = await admin.PostAsJsonAsync(
+            "/api/suppliers", new { name = "T3 Ad Degisimi", contactEmail = "ad@t3.local" }, Ct);
+        var created = (await response.Content.ReadFromJsonAsync<Supplier>(Ct))!;
+
+        try
+        {
+            var renamed = await admin.PutAsJsonAsync(
+                $"/api/suppliers/{created.Id}",
+                new { name = SeedSupplierName, contactEmail = "ad@t3.local", isActive = true },
+                Ct);
+
+            Assert.Equal(HttpStatusCode.NoContent, renamed.StatusCode);
+        }
+        finally
+        {
+            await admin.DeleteAsync($"/api/suppliers/{created.Id}", Ct);
+        }
     }
 
     /// <summary>
