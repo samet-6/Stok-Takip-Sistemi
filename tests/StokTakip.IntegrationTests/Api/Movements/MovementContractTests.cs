@@ -6,7 +6,7 @@ namespace StokTakip.IntegrationTests.Api.Movements;
 
 /// <summary>
 /// What the endpoint promises beyond any single request: the ledger stays the source of truth for
-/// StockQuantity, a re-sent movement is a second movement, and errors come back in one shape
+/// StockQuantity, a new intent (a new key) is a new movement, and errors come back in one shape
 /// clients can branch on.
 /// </summary>
 [Collection(DatabaseCollection.Name)]
@@ -58,13 +58,12 @@ public sealed class MovementContractTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Documented behaviour, not an oversight: there is no idempotency key, so an identical second
-    /// request is a second real movement. A client that cannot tell whether its first attempt
-    /// committed is asked to check and re-send rather than retry blindly — that decision only makes
-    /// sense while this test holds, which is why it is pinned rather than left implicit.
+    /// The other side of D27: the key identifies an intent, not a shape. Two receipts for the same
+    /// four units are two real deliveries, so two keys with identical content are two movements —
+    /// de-duplicating on content would silently swallow the second delivery.
     /// </summary>
     [Fact]
-    public async Task Ayni_hareket_iki_kez_gonderilince_iki_kayit_olusuyor()
+    public async Task Ayni_icerik_farkli_anahtarla_iki_kez_gonderilince_iki_kayit_olusuyor()
     {
         using var admin = await _db.Factory.AsAdminAsync(Ct);
         var product = await CreateProductAsync(admin, "CONTRACT-01", initialStock: 10);

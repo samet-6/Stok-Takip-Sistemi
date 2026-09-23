@@ -21,7 +21,7 @@ public sealed class SupplierService : ISupplierService
     private static readonly Expression<Func<Supplier, SupplierDto>> ToDto =
         s => new SupplierDto(
             s.Id, s.Name, s.ContactEmail, s.Phone, s.Address, s.IsActive, s.DeactivatedAt,
-            s.Products.Count, s.CreatedAt, s.UpdatedAt);
+            s.Products.Count, s.RowVersion, s.CreatedAt, s.UpdatedAt);
 
     public async Task<IReadOnlyList<SupplierDto>> GetAllAsync(CancellationToken ct)
         => await _db.Suppliers
@@ -71,6 +71,10 @@ public sealed class SupplierService : ISupplierService
         supplier.Phone = request.Phone;
         supplier.Address = request.Address;
         supplier.IsActive = request.IsActive;
+
+        // Optimistic concurrency, as in ProductService: a stale RowVersion makes the UPDATE match
+        // 0 rows, raising DbUpdateConcurrencyException (→ 409 concurrency_conflict).
+        _db.Entry(supplier).Property(s => s.RowVersion).OriginalValue = request.RowVersion;
         await _db.SaveChangesAsync(ct);
     }
 

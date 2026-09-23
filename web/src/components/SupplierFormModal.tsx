@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Form, Modal, Spinner } from 'react-bootstrap'
-import { createSupplier, updateSupplier } from '../api/suppliers'
+import { createSupplier, getSuppliers, updateSupplier } from '../api/suppliers'
 import type { SupplierDto } from '../types/api'
 import { useToast } from './toastContext'
+import { useVersionedEdit } from './useVersionedEdit'
+import { VersionConflictAlert } from './VersionConflictAlert'
 import { emailRules } from '../lib/schemas'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
@@ -41,21 +42,26 @@ export function SupplierFormModal({
     formState: { errors },
   } = useForm<SupplierForm>({ resolver: zodResolver(schema) })
 
-  // Re-seed the form each time the modal opens (for a given supplier, or for create).
-  useEffect(() => {
-    if (!show) return
-    reset(
-      supplier
-        ? {
-            name: supplier.name,
-            contactEmail: supplier.contactEmail,
-            phone: supplier.phone ?? '',
-            address: supplier.address ?? '',
-            isActive: supplier.isActive,
-          }
-        : { name: '', contactEmail: '', phone: '', address: '', isActive: true },
-    )
-  }, [show, supplier, reset])
+  const edit = useVersionedEdit({
+    show,
+    row: supplier,
+    apply: (s) =>
+      reset(
+        s
+          ? {
+              name: s.name,
+              contactEmail: s.contactEmail,
+              phone: s.phone ?? '',
+              address: s.address ?? '',
+              isActive: s.isActive,
+            }
+          : { name: '', contactEmail: '', phone: '', address: '', isActive: true },
+      ),
+    reload: async (id) =>
+      (await qc.fetchQuery({ queryKey: ['suppliers'], queryFn: getSuppliers, staleTime: 0 }))
+        .find((s) => s.id === id),
+    goneMessage: 'Bu tedarikçi artık yok.',
+  })
 
   const saveMutation = useMutation({
     mutationFn: (values: SupplierForm) => {
@@ -66,7 +72,11 @@ export function SupplierFormModal({
         address: values.address || null,
       }
       return supplier
-        ? updateSupplier(supplier.id, { ...base, isActive: values.isActive })
+        ? updateSupplier(supplier.id, {
+            ...base,
+            isActive: values.isActive,
+            rowVersion: edit.rowVersion,
+          })
         : createSupplier(base)
     },
     onSuccess: () => {
@@ -76,7 +86,10 @@ export function SupplierFormModal({
     },
     onError: (err) => {
       const problem = parseProblemDetails(err)
-      if (problem.status === 409) {
+      // Both are 409s; only the code tells a version clash from any other refusal.
+      if (problem.code === 'concurrency_conflict') {
+        edit.markConflict()
+      } else if (problem.status === 409) {
         setError('name', { type: 'server', message: problemMessage(problem) })
       } else {
         showError(problemMessage(problem))
@@ -91,6 +104,9 @@ export function SupplierFormModal({
           <Modal.Title>{supplier ? 'Tedarikçi Düzenle' : 'Yeni Tedarikçi'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {edit.conflict && (
+            <VersionConflictAlert subject="tedarikçi" onReload={edit.reloadFromServer} />
+          )}
           <Form.Group className="mb-3" controlId="supplier-name">
             <Form.Label>Ad</Form.Label>
             <Form.Control {...register('name')} isInvalid={!!errors.name} autoFocus />

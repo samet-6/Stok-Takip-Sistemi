@@ -129,9 +129,10 @@ public sealed class DeactivationStampTests : IAsyncDisposable
 
     private static async Task SetCategoryActiveAsync(HttpClient admin, int id, bool isActive)
     {
+        var current = await GetAsync<Lifecycle>(admin, $"/api/categories/{id}");
         var response = await admin.PutAsJsonAsync(
             $"/api/categories/{id}",
-            new { name = TestScratch.NamePrefix + "Damga Kategori", isActive },
+            new { name = TestScratch.NamePrefix + "Damga Kategori", isActive, rowVersion = current.RowVersion },
             Ct);
 
         response.EnsureSuccessStatusCode();
@@ -139,9 +140,14 @@ public sealed class DeactivationStampTests : IAsyncDisposable
 
     private static async Task SetSupplierActiveAsync(HttpClient admin, int id, bool isActive)
     {
+        var current = await GetAsync<Lifecycle>(admin, $"/api/suppliers/{id}");
         var response = await admin.PutAsJsonAsync(
             $"/api/suppliers/{id}",
-            new { name = TestScratch.NamePrefix + "Damga Tedarikci", contactEmail = "t4@stok.local", isActive },
+            new
+            {
+                name = TestScratch.NamePrefix + "Damga Tedarikci", contactEmail = "t4@stok.local",
+                isActive, rowVersion = current.RowVersion
+            },
             Ct);
 
         response.EnsureSuccessStatusCode();

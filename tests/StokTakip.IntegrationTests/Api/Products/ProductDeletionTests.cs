@@ -179,8 +179,8 @@ public sealed class ProductDeletionTests : IAsyncLifetime
     }
 
     private static Task<HttpResponseMessage> TakeOutAsync(HttpClient admin, int productId, int quantity)
-        => admin.PostAsJsonAsync(
-            "/api/stock-movements",
+        => Movements.MovementScratch.PostMovementBodyAsync(
+            admin,
             new { productId, type = "Out", quantity, note = TestScratch.NamePrefix + "hareket" },
             Ct);
 

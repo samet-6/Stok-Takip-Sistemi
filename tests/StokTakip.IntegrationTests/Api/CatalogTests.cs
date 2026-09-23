@@ -43,7 +43,7 @@ public sealed class CatalogTests
         Assert.Contains(list!, c => c.Id == dto.Id && c.Name == "T3 Tur Kategori");
 
         var updated = await admin.PutAsJsonAsync(
-            $"/api/categories/{dto.Id}", new { name = "T3 Tur Kategori (düzenlendi)" }, Ct);
+            $"/api/categories/{dto.Id}", new { name = "T3 Tur Kategori (düzenlendi)", rowVersion = dto.RowVersion }, Ct);
         Assert.Equal(HttpStatusCode.NoContent, updated.StatusCode);
 
         var afterUpdate = await admin.GetFromJsonAsync<Category>($"/api/categories/{dto.Id}", Ct);
@@ -77,7 +77,7 @@ public sealed class CatalogTests
 
         var updated = await admin.PutAsJsonAsync(
             $"/api/suppliers/{dto.Id}",
-            new { name = "T3 Tur Tedarikçi (düzenlendi)", contactEmail = "tur@t3.local", isActive = false },
+            new { name = "T3 Tur Tedarikçi (düzenlendi)", contactEmail = "tur@t3.local", isActive = false, rowVersion = dto.RowVersion },
             Ct);
         Assert.Equal(HttpStatusCode.NoContent, updated.StatusCode);
 
@@ -143,7 +143,7 @@ public sealed class CatalogTests
         {
             var renamed = await admin.PutAsJsonAsync(
                 $"/api/suppliers/{created.Id}",
-                new { name = SeedSupplierName, contactEmail = "ad@t3.local", isActive = true },
+                new { name = SeedSupplierName, contactEmail = "ad@t3.local", isActive = true, rowVersion = created.RowVersion },
                 Ct);
 
             Assert.Equal(HttpStatusCode.NoContent, renamed.StatusCode);
@@ -363,7 +363,8 @@ public sealed class CatalogTests
         try
         {
             var renamed = await admin.PutAsJsonAsync(
-                $"/api/categories/{created.Id}", new { name = "ELEKTRONİK", isActive = true }, Ct);
+                $"/api/categories/{created.Id}",
+                new { name = "ELEKTRONİK", isActive = true, rowVersion = created.RowVersion }, Ct);
 
             Assert.Equal(HttpStatusCode.Conflict, renamed.StatusCode);
             Assert.Equal("Bu kategori adı zaten kayıtlı", await TitleOfAsync(renamed));
@@ -442,8 +443,9 @@ public sealed class CatalogTests
 
     // Local shapes on purpose: they pin the JSON contract. Reusing the application's DTOs would
     // let a renamed field move on both sides at once and the test would never notice.
-    private sealed record Category(int Id, string Name, string? Description, int ProductCount);
+    private sealed record Category(int Id, string Name, string? Description, int ProductCount, uint RowVersion);
 
     private sealed record Supplier(
-        int Id, string Name, string ContactEmail, string? Phone, string? Address, bool IsActive, int ProductCount);
+        int Id, string Name, string ContactEmail, string? Phone, string? Address, bool IsActive, int ProductCount,
+        uint RowVersion);
 }

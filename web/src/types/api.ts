@@ -95,6 +95,7 @@ export interface CategoryDto {
    *  off before the stamp existed — read it as unknown, not as just now. */
   deactivatedAt?: string | null
   productCount: number
+  rowVersion: number
   createdAt: string
   updatedAt: string
 }
@@ -108,6 +109,7 @@ export interface UpdateCategoryRequest {
   name: string
   description?: string | null
   isActive: boolean
+  rowVersion: number
 }
 
 // --- Suppliers ---
@@ -120,6 +122,7 @@ export interface SupplierDto {
   isActive: boolean
   deactivatedAt?: string | null
   productCount: number
+  rowVersion: number
   createdAt: string
   updatedAt: string
 }
@@ -137,6 +140,7 @@ export interface UpdateSupplierRequest {
   phone?: string | null
   address?: string | null
   isActive: boolean
+  rowVersion: number
 }
 
 // --- Products ---

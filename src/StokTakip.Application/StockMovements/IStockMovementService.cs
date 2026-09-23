@@ -11,5 +11,6 @@ public interface IStockMovementService
     Task<StockMovementResponse> CreateAsync(
         CreateStockMovementRequest request,
         string userId,
+        Guid idempotencyKey,
         CancellationToken ct);
 }

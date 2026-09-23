@@ -44,13 +44,7 @@ public sealed class UserService : IUserService
 
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
-        {
-            // Email duplication is pre-checked and required fields pass DataAnnotations
-            // first, so CreateAsync failures here are password-policy violations. Surface
-            // the full policy (not just the missing rule) under the password field.
-            throw new BadRequestException(
-                new Dictionary<string, string[]> { ["password"] = [PasswordPolicy.Message] });
-        }
+            throw UserWriteFailure.ForCreate(result);
 
         await _userManager.AddToRoleAsync(user, EmployeeRole);
 
@@ -115,25 +109,7 @@ public sealed class UserService : IUserService
         // in particular never without a password hash.
         var update = await _userManager.UpdateAsync(user);
         if (!update.Succeeded)
-            throw ToBadRequest(update);
-    }
-
-    // UpdateAsync runs Identity's user validator, whose failures are about the email or the
-    // username derived from it; anything else is reported without blaming a specific field.
-    private static BadRequestException ToBadRequest(IdentityResult result)
-    {
-        string[] emailCodes =
-        [
-            nameof(IdentityErrorDescriber.InvalidEmail),
-            nameof(IdentityErrorDescriber.DuplicateEmail),
-            nameof(IdentityErrorDescriber.InvalidUserName),
-            nameof(IdentityErrorDescriber.DuplicateUserName)
-        ];
-
-        return result.Errors.Any(e => emailCodes.Contains(e.Code))
-            ? new BadRequestException(
-                new Dictionary<string, string[]> { ["email"] = ["Geçerli bir e-posta girin."] })
-            : new BadRequestException("Kullanıcı güncellenemedi.");
+            throw UserWriteFailure.ForUpdate(update);
     }
 
     public async Task SetStatusAsync(string id, UpdateUserStatusRequest request, CancellationToken ct)

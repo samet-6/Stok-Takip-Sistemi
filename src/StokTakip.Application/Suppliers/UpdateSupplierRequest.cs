@@ -20,4 +20,6 @@ public sealed class UpdateSupplierRequest
     public string? Address { get; set; }
 
     public bool IsActive { get; set; }
+
+    public uint RowVersion { get; set; }
 }

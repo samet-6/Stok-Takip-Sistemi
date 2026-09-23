@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Form, Modal, Spinner } from 'react-bootstrap'
-import { createCategory, updateCategory } from '../api/categories'
+import { createCategory, getCategories, updateCategory } from '../api/categories'
 import type { CategoryDto } from '../types/api'
 import { useToast } from './toastContext'
+import { useVersionedEdit } from './useVersionedEdit'
+import { VersionConflictAlert } from './VersionConflictAlert'
 import { parseProblemDetails, problemMessage } from '../lib/problemDetails'
 
 const schema = z.object({
@@ -38,25 +39,31 @@ export function CategoryFormModal({
     formState: { errors },
   } = useForm<CategoryForm>({ resolver: zodResolver(schema) })
 
-  useEffect(() => {
-    if (!show) return
-    reset(
-      category
-        ? {
-            name: category.name,
-            description: category.description ?? '',
-            isActive: category.isActive,
-          }
-        : { name: '', description: '', isActive: true },
-    )
-  }, [show, category, reset])
+  const edit = useVersionedEdit({
+    show,
+    row: category,
+    apply: (c) =>
+      reset(
+        c
+          ? { name: c.name, description: c.description ?? '', isActive: c.isActive }
+          : { name: '', description: '', isActive: true },
+      ),
+    reload: async (id) =>
+      (await qc.fetchQuery({ queryKey: ['categories'], queryFn: getCategories, staleTime: 0 }))
+        .find((c) => c.id === id),
+    goneMessage: 'Bu kategori artık yok.',
+  })
 
   const saveMutation = useMutation({
     mutationFn: (values: CategoryForm) => {
       // Categories are born active, like suppliers: the switch only exists while editing.
       const body = { name: values.name, description: values.description || null }
       return category
-        ? updateCategory(category.id, { ...body, isActive: values.isActive })
+        ? updateCategory(category.id, {
+            ...body,
+            isActive: values.isActive,
+            rowVersion: edit.rowVersion,
+          })
         : createCategory(body)
     },
     onSuccess: () => {
@@ -66,7 +73,10 @@ export function CategoryFormModal({
     },
     onError: (err) => {
       const problem = parseProblemDetails(err)
-      if (problem.status === 409) {
+      // Both are 409s; only the code tells a version clash from a taken name.
+      if (problem.code === 'concurrency_conflict') {
+        edit.markConflict()
+      } else if (problem.status === 409) {
         setError('name', { type: 'server', message: problemMessage(problem) })
       } else {
         showError(problemMessage(problem))
@@ -81,6 +91,9 @@ export function CategoryFormModal({
           <Modal.Title>{category ? 'Kategori Düzenle' : 'Yeni Kategori'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {edit.conflict && (
+            <VersionConflictAlert subject="kategori" onReload={edit.reloadFromServer} />
+          )}
           <Form.Group className="mb-3" controlId="category-name">
             <Form.Label>Ad</Form.Label>
             <Form.Control {...register('name')} isInvalid={!!errors.name} autoFocus />

@@ -23,15 +23,23 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
             .HasForeignKey(n => n.CreatedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // The list and the bell both read newest-first; the index matches that order so the
-        // page and the unread count never have to sort the table.
-        builder.HasIndex(n => n.CreatedAt)
-            .IsDescending()
-            .HasDatabaseName("IX_Notifications_CreatedAt");
+        // The list reads newest first with Id breaking ties, and the index holds both in that
+        // order, so a page comes straight off it with no sort step. (The old CreatedAt-only
+        // index left an Incremental Sort for the tiebreak — measured, D21.) The unread count is
+        // not this index's job: see the partial one below.
+        builder.HasIndex(n => new { n.CreatedAt, n.Id })
+            .IsDescending(true, true)
+            .HasDatabaseName("IX_Notifications_CreatedAt_Id");
 
-        // Serves the rejection de-duplication lookup ("is there an unread rejection for this
-        // product already?"), which runs on every refused Out movement.
+        // The foreign key's index, over every row: deleting a product has to find its read
+        // notifications too, which the partial index below does not hold.
         builder.HasIndex(n => n.ProductId).HasDatabaseName("IX_Notifications_ProductId");
+
+        // Unread rows only (D16) — the few the bell counts and the rejection de-duplication asks
+        // about ("an unread rejection for this product already?", on every refused Out movement).
+        // Measured on 60k rows: the count went from a full table scan to this index.
+        builder.HasIndex(n => n.ProductId, "IX_Notifications_Unread_ProductId")
+            .HasFilter("\"ReadAt\" IS NULL");
 
         builder.ToTable(t =>
         {

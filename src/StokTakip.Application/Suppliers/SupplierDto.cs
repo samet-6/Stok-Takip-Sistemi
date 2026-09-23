@@ -9,5 +9,6 @@ public sealed record SupplierDto(
     bool IsActive,
     DateTime? DeactivatedAt,
     int ProductCount,
+    uint RowVersion,
     DateTime CreatedAt,
     DateTime UpdatedAt);

@@ -9,5 +9,6 @@ public sealed record CategoryDto(
     // the UI reads it as "unknown", never as "just now".
     DateTime? DeactivatedAt,
     int ProductCount,
+    uint RowVersion,
     DateTime CreatedAt,
     DateTime UpdatedAt);

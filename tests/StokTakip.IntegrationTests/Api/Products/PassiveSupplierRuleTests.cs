@@ -83,8 +83,8 @@ public sealed class PassiveSupplierRuleTests : IAsyncLifetime
         using var admin = await _db.Factory.AsAdminAsync(Ct);
         var (product, _) = await ProductOnPassiveSupplierAsync(admin, "MOVE");
 
-        var response = await admin.PostAsJsonAsync(
-            "/api/stock-movements",
+        var response = await Movements.MovementScratch.PostMovementBodyAsync(
+            admin,
             new { productId = product.Id, type = "In", quantity = 7, note = "T4 pasif tedarikçi testi" },
             Ct);
 

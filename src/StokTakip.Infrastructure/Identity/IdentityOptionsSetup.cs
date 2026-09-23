@@ -24,5 +24,9 @@ public sealed class IdentityOptionsSetup : IConfigureOptions<IdentityOptions>
         options.Lockout.MaxFailedAccessAttempts = LockoutPolicy.MaxFailedAttempts;
         options.Lockout.DefaultLockoutTimeSpan = LockoutPolicy.Duration;
         options.Lockout.AllowedForNewUsers = true;
+
+        // The e-mail is the login, so two accounts on one address is not a state to allow.
+        // The database has the matching unique index (ApplicationUserConfiguration).
+        options.User.RequireUniqueEmail = true;
     }
 }

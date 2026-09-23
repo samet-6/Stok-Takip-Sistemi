@@ -86,8 +86,8 @@ public sealed class ProductConcurrencyTests : IAsyncLifetime
         using var admin = await _db.Factory.AsAdminAsync(Ct);
         var product = await CreateProductAsync(admin, "CONC-03");
 
-        var movement = await admin.PostAsJsonAsync(
-            "/api/stock-movements",
+        var movement = await Movements.MovementScratch.PostMovementBodyAsync(
+            admin,
             new { productId = product.Id, type = "In", quantity = 3, note = "T4 jeton testi" },
             Ct);
         Assert.Equal(HttpStatusCode.Created, movement.StatusCode);

@@ -67,8 +67,8 @@ public sealed class MovementIdentityTests : IAsyncLifetime
         var adminId = await AdminIdAsync(admin, product.Id);
         var calisanId = await MovementScratch.SeedCalisanIdAsync(admin, Ct);
 
-        var response = await calisan.PostAsJsonAsync(
-            "/api/stock-movements",
+        var response = await MovementScratch.PostMovementBodyAsync(
+            calisan,
             new
             {
                 productId = product.Id,

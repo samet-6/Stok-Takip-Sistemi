@@ -16,6 +16,7 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.Phone).HasMaxLength(20);
         builder.Property(s => s.Address).HasMaxLength(300);
         builder.Property(s => s.IsActive).HasDefaultValue(true);
+        builder.Property(s => s.RowVersion).IsXminRowVersion();
 
         // No name uniqueness (D9c): the Id is the identity and the name is a label — two firms
         // may share one and are told apart by their contact details.

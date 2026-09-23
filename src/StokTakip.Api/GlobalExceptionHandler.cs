@@ -35,6 +35,9 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             // particular; it is a sibling of UnauthorizedException, not a subtype.
             LockedOutException => (StatusCodes.Status401Unauthorized, exception.Message, "account_locked"),
             UnauthorizedException => (StatusCodes.Status401Unauthorized, exception.Message, "unauthorized"),
+            // D27 — two causes a client has to tell apart: "send the key" vs "that key is taken".
+            IdempotencyKeyRequiredException => (StatusCodes.Status400BadRequest, exception.Message, "idempotency_key_required"),
+            IdempotencyKeyReusedException => (StatusCodes.Status422UnprocessableEntity, exception.Message, "idempotency_key_reused"),
             // Optimistic concurrency (stale xmin) — must precede the generic DbUpdateException arm.
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Çakışma", "concurrency_conflict"),
             // Unique-violation safety net for the pre-check race window (Postgres 23505).

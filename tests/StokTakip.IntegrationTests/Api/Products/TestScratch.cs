@@ -86,9 +86,10 @@ internal static class TestScratch
     public static async Task DeactivateSupplierAsync(
         HttpClient admin, int supplierId, string name, CancellationToken ct)
     {
+        var current = await admin.GetFromJsonAsync<RowVersionOnly>($"/api/suppliers/{supplierId}", ct);
         var response = await admin.PutAsJsonAsync(
             $"/api/suppliers/{supplierId}",
-            new { name = NamePrefix + name, contactEmail = "t4@stok.local", isActive = false },
+            new { name = NamePrefix + name, contactEmail = "t4@stok.local", isActive = false, rowVersion = current!.RowVersion },
             ct);
 
         response.EnsureSuccessStatusCode();
@@ -156,4 +157,6 @@ internal static class TestScratch
         uint RowVersion);
 
     private sealed record IdOnly(int Id);
+
+    private sealed record RowVersionOnly(uint RowVersion);
 }

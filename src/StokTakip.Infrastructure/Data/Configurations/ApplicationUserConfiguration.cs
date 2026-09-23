@@ -15,5 +15,10 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
         builder.Property(u => u.IsActive).HasDefaultValue(true);
         builder.Property(u => u.CreatedAt).HasDefaultValueSql("now()");
         // DeactivatedAt: nullable timestamptz, no default (null while active).
+
+        // D12: Identity builds EmailIndex non-unique whatever RequireUniqueEmail says, so the rule
+        // is restated here to reach the database. Deactivated users keep their address on purpose:
+        // the row stays for the audit trail, and a re-hire is a reactivation, not a new account.
+        builder.HasIndex(u => u.NormalizedEmail).HasDatabaseName("EmailIndex").IsUnique();
     }
 }

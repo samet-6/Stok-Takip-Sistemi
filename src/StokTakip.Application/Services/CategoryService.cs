@@ -21,7 +21,7 @@ public sealed class CategoryService : ICategoryService
     private static readonly Expression<Func<Category, CategoryDto>> ToDto =
         c => new CategoryDto(
             c.Id, c.Name, c.Description, c.IsActive, c.DeactivatedAt,
-            c.Products.Count, c.CreatedAt, c.UpdatedAt);
+            c.Products.Count, c.RowVersion, c.CreatedAt, c.UpdatedAt);
 
     public async Task<IReadOnlyList<CategoryDto>> GetAllAsync(CancellationToken ct)
         => await _db.Categories
@@ -76,6 +76,10 @@ public sealed class CategoryService : ICategoryService
         category.Name = name;
         category.Description = request.Description;
         category.IsActive = request.IsActive;
+
+        // Optimistic concurrency, as in ProductService: a stale RowVersion makes the UPDATE match
+        // 0 rows, raising DbUpdateConcurrencyException (→ 409 concurrency_conflict).
+        _db.Entry(category).Property(c => c.RowVersion).OriginalValue = request.RowVersion;
         await _db.SaveChangesAsync(ct);
     }
 

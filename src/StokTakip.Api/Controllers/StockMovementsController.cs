@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StokTakip.Application.Common;
+using StokTakip.Application.Common.Exceptions;
 using StokTakip.Application.StockMovements;
 
 namespace StokTakip.Api.Controllers;
@@ -31,14 +32,22 @@ public sealed class StockMovementsController : ControllerBase
     // Class-level [Authorize] applies; no role restriction here.
     [HttpPost]
     public async Task<ActionResult<StockMovementResponse>> Create(
-        CreateStockMovementRequest request, CancellationToken ct)
+        CreateStockMovementRequest request,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        CancellationToken ct)
     {
         // Identity comes from the token only — never accepted from the client.
         var userId = User.FindFirstValue("sub");
         if (userId is null)
             return Unauthorized();
 
-        var response = await _stockMovementService.CreateAsync(request, userId, ct);
+        // Required, not optional (D27): the guarantee is only as strong as the client that
+        // remembers to send a key. The empty GUID is refused too — every client that forgot to
+        // generate one would share it, and their movements would collide.
+        if (!Guid.TryParse(idempotencyKey, out var key) || key == Guid.Empty)
+            throw new IdempotencyKeyRequiredException();
+
+        var response = await _stockMovementService.CreateAsync(request, userId, key, ct);
         return StatusCode(StatusCodes.Status201Created, response);
     }
 }

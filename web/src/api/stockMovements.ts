@@ -29,12 +29,16 @@ export async function getStockMovements(params: {
   return data
 }
 
+// idempotencyKey identifies the intent, not the request: every re-send of the same movement
+// carries the same key, so a retry after a lost answer cannot post it twice (D27).
 export async function createStockMovement(
   body: CreateStockMovementRequest,
+  idempotencyKey: string,
 ): Promise<StockMovementResponse> {
   const { data } = await apiClient.post<StockMovementResponse>(
     '/stock-movements',
     body,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
   )
   return data
 }

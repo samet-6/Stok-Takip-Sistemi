@@ -93,8 +93,13 @@ public sealed class StockMovementService : IStockMovementService
     }
 
     public async Task<StockMovementResponse> CreateAsync(
-        CreateStockMovementRequest request, string userId, CancellationToken ct)
+        CreateStockMovementRequest request, string userId, Guid idempotencyKey, CancellationToken ct)
     {
+        // D27: an intent sent again is answered from the ledger, before anything is judged — the
+        // product may have gone passive or run low since, and neither changes what already happened.
+        var replay = await ReplayAsync(idempotencyKey, request, userId, ct);
+        if (replay is not null) return replay;
+
         var product = await _db.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId, ct)
             ?? throw new BadRequestException("Ürün bulunamadı");
 
@@ -106,7 +111,8 @@ public sealed class StockMovementService : IStockMovementService
             Type = request.Type,
             Quantity = request.Quantity,
             Note = request.Note,
-            CreatedByUserId = userId
+            CreatedByUserId = userId,
+            IdempotencyKey = idempotencyKey
         };
         _db.StockMovements.Add(movement);
 
@@ -125,8 +131,8 @@ public sealed class StockMovementService : IStockMovementService
         //
         // Retrying here cannot double-post: the failed SaveChangesAsync rolled its whole
         // transaction back, so the previous attempt's INSERT provably never landed. A retry from
-        // the CLIENT is a different matter — it cannot know whether the first request committed,
-        // which is why the caller is asked to check and re-send rather than resending on its own.
+        // the CLIENT cannot either, though it cannot know whether its first request committed:
+        // it re-sends the same idempotency key, and the key is unique in the ledger (D27).
         Notification? stagedNotification = null;
 
         for (var attempt = 1; ; attempt++)
@@ -160,11 +166,28 @@ public sealed class StockMovementService : IStockMovementService
                 Detach(movement);
                 Detach(stagedNotification);
 
+                // No key check here: a twin (same key) that committed first is caught by the unique
+                // index below, because EF sends the movement's INSERT ahead of the product's UPDATE
+                // and the INSERT is what collides. Measured, not assumed — a B0 run without the
+                // catch below made both concurrency tests fail. Should EF ever send the UPDATE
+                // first, the twin would land here and be re-judged against the stock it used up,
+                // and the concurrent-Out idempotency test is the one that would say so.
                 await EnsureMovementAllowedAsync(product, request, userId, ct);
 
                 // Still allowed — the movement goes back on for the next attempt. Its Id is still
                 // 0 (nothing ever committed), so this re-inserts rather than duplicating.
                 _db.StockMovements.Add(movement);
+            }
+            catch (DbUpdateException)
+            {
+                // Either the twin committed between our check and our write and the unique key
+                // index refused this copy, or contention outlasted the retries. In the first case
+                // the twin's row is the answer — asked of the ledger rather than read off the
+                // provider's error, so this layer stays free of Npgsql. Otherwise the failure
+                // stands exactly as it was (a spent retry budget is still a 409).
+                var twin = await ReplayAsync(idempotencyKey, request, userId, ct);
+                if (twin is null) throw;
+                return twin;
             }
         }
 
@@ -184,6 +207,47 @@ public sealed class StockMovementService : IStockMovementService
             names.TryGetValue(userId, out var fullName) ? fullName : string.Empty);
 
         return new StockMovementResponse(dto, product.StockQuantity);
+    }
+
+    /// <summary>
+    /// The movement already written under this key, as the response it produced — or null when
+    /// the key is new. Read from the database, never from the change tracker: this request's own
+    /// staged changes are exactly what must not be reported. "newStockQuantity" is stock now, the
+    /// same meaning it has on a first write.
+    /// </summary>
+    private async Task<StockMovementResponse?> ReplayAsync(
+        Guid idempotencyKey, CreateStockMovementRequest request, string userId, CancellationToken ct)
+    {
+        var existing = await _db.StockMovements
+            .AsNoTracking()
+            .Where(m => m.IdempotencyKey == idempotencyKey)
+            .Select(m => new
+            {
+                m.Id, m.ProductId, ProductName = m.Product.Name, ProductIsActive = m.Product.IsActive,
+                m.Type, m.Quantity, m.Note, m.CreatedAt, m.CreatedByUserId,
+                StockNow = m.Product.StockQuantity
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (existing is null) return null;
+
+        // Same intent means same everything the caller chose. Anything else is a reused key, and
+        // answering with this movement would tell the caller their different request was saved.
+        var sameIntent = existing.CreatedByUserId == userId
+                         && existing.ProductId == request.ProductId
+                         && existing.Type == request.Type
+                         && existing.Quantity == request.Quantity
+                         && existing.Note == request.Note;
+        if (!sameIntent)
+            throw new IdempotencyKeyReusedException();
+
+        var names = await _userLookup.GetFullNamesAsync([userId], ct);
+        var dto = new StockMovementDto(
+            existing.Id, existing.ProductId, existing.ProductName, existing.ProductIsActive,
+            existing.Type, existing.Quantity, existing.Note, existing.CreatedAt, userId,
+            names.TryGetValue(userId, out var fullName) ? fullName : string.Empty);
+
+        return new StockMovementResponse(dto, existing.StockNow);
     }
 
     // Shared by the first attempt and every retry: a reload brings a different quantity, so the

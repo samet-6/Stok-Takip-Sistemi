@@ -197,6 +197,12 @@ namespace StokTakip.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasComputedColumnSql("f_name_key(\"Name\")", true);
 
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -247,14 +253,17 @@ namespace StokTakip.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAt")
-                        .IsDescending()
-                        .HasDatabaseName("IX_Notifications_CreatedAt");
-
                     b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("ProductId")
                         .HasDatabaseName("IX_Notifications_ProductId");
+
+                    b.HasIndex("CreatedAt", "Id")
+                        .IsDescending()
+                        .HasDatabaseName("IX_Notifications_CreatedAt_Id");
+
+                    b.HasIndex(new[] { "ProductId" }, "IX_Notifications_Unread_ProductId")
+                        .HasFilter("\"ReadAt\" IS NULL");
 
                     b.ToTable("Notifications", t =>
                         {
@@ -389,6 +398,9 @@ namespace StokTakip.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Note")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
@@ -404,13 +416,22 @@ namespace StokTakip.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_StockMovements_CreatedAt");
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_StockMovements_IdempotencyKey")
+                        .HasFilter("\"IdempotencyKey\" IS NOT NULL");
 
-                    b.HasIndex("CreatedByUserId");
+                    b.HasIndex("CreatedAt", "Id")
+                        .IsDescending()
+                        .HasDatabaseName("IX_StockMovements_CreatedAt_Id");
 
-                    b.HasIndex("ProductId")
-                        .HasDatabaseName("IX_StockMovements_ProductId");
+                    b.HasIndex("CreatedByUserId", "CreatedAt", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_StockMovements_CreatedByUserId_CreatedAt_Id");
+
+                    b.HasIndex("ProductId", "CreatedAt", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_StockMovements_ProductId_CreatedAt_Id");
 
                     b.ToTable("StockMovements", t =>
                         {
@@ -463,6 +484,12 @@ namespace StokTakip.Infrastructure.Migrations
                     b.Property<string>("Phone")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -551,6 +578,7 @@ namespace StokTakip.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
+                        .IsUnique()
                         .HasDatabaseName("EmailIndex");
 
                     b.HasIndex("NormalizedUserName")

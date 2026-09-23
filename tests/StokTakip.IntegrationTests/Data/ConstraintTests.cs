@@ -52,6 +52,55 @@ public sealed class ConstraintTests
         Assert.Equal("UQ_Categories_NameKey", error.ConstraintName);
     }
 
+    // D12: the user name happens to be the e-mail today, so its index already stood guard — this
+    // row gives it a different user name to make the e-mail index answer on its own. Identity's
+    // FindByEmailAsync is a SingleOrDefault: two rows here would break that address's login.
+    [Fact]
+    public async Task Ayni_e_posta_farkli_kullanici_adiyla_unique_ihlali_veriyor()
+    {
+        await using var db = _db.CreateContext();
+        var seededEmail = await db.Users.Select(u => u.NormalizedEmail).FirstAsync(Ct);
+
+        db.Users.Add(new ApplicationUser
+        {
+            UserName = "d12-dup@test.local",
+            NormalizedUserName = "D12-DUP@TEST.LOCAL",
+            Email = seededEmail!.ToLowerInvariant(),
+            NormalizedEmail = seededEmail,
+            FullName = "D12 kopya",
+            SecurityStamp = Guid.NewGuid().ToString()
+        });
+
+        var error = await AssertPostgresFailureAsync(db);
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
+        Assert.Equal("EmailIndex", error.ConstraintName);
+    }
+
+    // D27 at the database itself: the service checks for the key first, but two copies arriving
+    // together both pass that check — only the index can keep the second one out.
+    [Fact]
+    public async Task Ayni_idempotency_anahtarli_ikinci_hareket_unique_ihlali_veriyor()
+    {
+        await using var db = _db.CreateContext();
+        await using var tx = await db.Database.BeginTransactionAsync(Ct);
+        var productId = await db.Products.Select(p => p.Id).FirstAsync(Ct);
+        var userId = await db.Users.Select(u => u.Id).FirstAsync(Ct);
+        var key = Guid.NewGuid();
+
+        var first = NewMovement(productId, userId);
+        first.IdempotencyKey = key;
+        db.StockMovements.Add(first);
+        await db.SaveChangesAsync(Ct);
+
+        var second = NewMovement(productId, userId);
+        second.IdempotencyKey = key;
+        db.StockMovements.Add(second);
+
+        var error = await AssertPostgresFailureAsync(db);
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
+        Assert.Equal("UQ_StockMovements_IdempotencyKey", error.ConstraintName);
+    }
+
     [Fact]
     public async Task Sifir_miktarli_stok_hareketi_check_ihlali_veriyor()
     {
@@ -365,6 +414,90 @@ public sealed class ConstraintTests
         Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
         Assert.Contains("append-only", error.MessageText);
         Assert.True(await db.StockMovements.AnyAsync(m => m.Id == id, Ct));
+    }
+
+    /// <summary>
+    /// D11: "when was this created" is written once, on insert. The change goes through EF on
+    /// purpose — EF itself does not guard the column, so the UPDATE really reaches the table and
+    /// the database is the one refusing, exactly as it would refuse pgAdmin. Rolled back on dispose.
+    /// </summary>
+    [Theory]
+    [InlineData("Categories")]
+    [InlineData("Suppliers")]
+    [InlineData("Products")]
+    [InlineData("AspNetUsers")]
+    [InlineData("Notifications")]
+    public async Task CreatedAt_insertten_sonra_degistirilemiyor(string table)
+    {
+        await using var db = _db.CreateContext();
+        await using var tx = await db.Database.BeginTransactionAsync(Ct);
+        var row = await RowOfAsync(db, table);
+
+        var createdAt = db.Entry(row).Property("CreatedAt");
+        createdAt.CurrentValue = ((DateTime)createdAt.CurrentValue!).AddDays(-1);
+
+        var error = await AssertPostgresFailureAsync(db);
+        Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
+        Assert.Contains("CreatedAt", error.MessageText);
+    }
+
+    /// <summary>
+    /// The lock above is one trigger per table, so a new table with a CreatedAt column would start
+    /// out unguarded and nothing would say so. This asks the catalogue instead of a list: every
+    /// table that has the column must carry the lock — or, for StockMovements, the append-only
+    /// trigger, which already refuses every UPDATE.
+    /// </summary>
+    [Fact]
+    public async Task CreatedAt_kolonu_olan_her_tablo_kilitli()
+    {
+        await using var db = _db.CreateContext();
+
+        var tables = await db.Database.SqlQuery<string>($"""
+            SELECT c.table_name::text AS "Value"
+            FROM information_schema.columns c
+            WHERE c.table_schema = 'public' AND c.column_name = 'CreatedAt'
+            """).ToListAsync(Ct);
+
+        var unguarded = await db.Database.SqlQuery<string>($"""
+            SELECT c.table_name::text AS "Value"
+            FROM information_schema.columns c
+            WHERE c.table_schema = 'public' AND c.column_name = 'CreatedAt'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pg_trigger t
+                  JOIN pg_class r ON r.oid = t.tgrelid
+                  JOIN pg_namespace n ON n.oid = r.relnamespace
+                  JOIN pg_proc p ON p.oid = t.tgfoid
+                  WHERE n.nspname = 'public' AND r.relname = c.table_name AND NOT t.tgisinternal
+                    AND p.proname IN ('f_created_at_immutable', 'f_stock_movements_append_only'))
+            """).ToListAsync(Ct);
+
+        // Without this a scan that saw nothing (a wrong schema name, say) would pass as "all locked".
+        Assert.Equal(
+            ["AspNetUsers", "Categories", "Notifications", "Products", "StockMovements", "Suppliers"],
+            tables.Order());
+        Assert.Empty(unguarded);
+    }
+
+    private static async Task<object> RowOfAsync(AppDbContext db, string table) => table switch
+    {
+        "Categories" => await db.Categories.FirstAsync(Ct),
+        "Suppliers" => await db.Suppliers.FirstAsync(Ct),
+        "Products" => await db.Products.FirstAsync(Ct),
+        "AspNetUsers" => await db.Users.FirstAsync(Ct),
+        // Nothing seeds notifications, so the test writes its own.
+        "Notifications" => await AddFreshNotificationAsync(db),
+        _ => throw new ArgumentOutOfRangeException(nameof(table), table, null)
+    };
+
+    private static async Task<Notification> AddFreshNotificationAsync(AppDbContext db)
+    {
+        var notification = NewNotification(
+            await db.Products.Select(p => p.Id).FirstAsync(Ct),
+            await db.Users.Select(u => u.Id).FirstAsync(Ct));
+        db.Notifications.Add(notification);
+        await db.SaveChangesAsync(Ct);
+        return notification;
     }
 
     private static async Task<(int CategoryId, int SupplierId)> SeedIdsAsync(AppDbContext db) =>

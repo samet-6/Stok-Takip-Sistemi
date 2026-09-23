@@ -112,11 +112,29 @@ internal static class MovementScratch
 
     public static Task<HttpResponseMessage> PostMovementAsync(
         HttpClient client, int productId, string type, int quantity,
-        CancellationToken ct, string? note = null)
-        => client.PostAsJsonAsync(
-            "/api/stock-movements",
+        CancellationToken ct, string? note = null, Guid? idempotencyKey = null)
+        => PostMovementBodyAsync(
+            client,
             new { productId, type, quantity, note = note ?? NamePrefix + "hareket" },
-            ct);
+            ct,
+            idempotencyKey);
+
+    /// <summary>
+    /// Every movement carries an Idempotency-Key (D27). Left out, each call is a new intent with a
+    /// key of its own — which is what an ordinary "add a movement" step in a test means. Tests about
+    /// re-sending pass the same key twice on purpose.
+    /// </summary>
+    public static Task<HttpResponseMessage> PostMovementBodyAsync(
+        HttpClient client, object body, CancellationToken ct, Guid? idempotencyKey = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/stock-movements")
+        {
+            Content = JsonContent.Create(body)
+        };
+        request.Headers.Add("Idempotency-Key", (idempotencyKey ?? Guid.NewGuid()).ToString());
+
+        return client.SendAsync(request, ct);
+    }
 
     /// <summary>Posts a movement and fails loudly if it was refused — for arranging state.</summary>
     public static async Task<MovementResult> AddMovementAsync(

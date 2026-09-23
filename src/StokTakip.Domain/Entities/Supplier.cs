@@ -14,5 +14,8 @@ public class Supplier : IAuditable, IDeactivatable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>Optimistic concurrency token — see <see cref="Product.RowVersion"/>.</summary>
+    public uint RowVersion { get; set; }
+
     public ICollection<Product> Products { get; set; } = new List<Product>();
 }

@@ -103,9 +103,11 @@ GET {{baseUrl}}/api/stock-movements?productId=&page=1&pageSize=10
 Authorization: Bearer {{token}}
 
 ### Stock Movements — In hareketi (Admin)
+# Idempotency-Key zorunlu (D27): aynı anahtarla tekrar gönderim ikinci kayıt açmaz, ilk hareketi döner.
 POST {{baseUrl}}/api/stock-movements
 Authorization: Bearer {{token}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
 
 { "productId": 1, "type": "In", "quantity": 10, "note": "Mal girişi" }
 
@@ -113,5 +115,6 @@ Content-Type: application/json
 POST {{baseUrl}}/api/stock-movements
 Authorization: Bearer {{token}}
 Content-Type: application/json
+Idempotency-Key: {{$guid}}
 
 { "productId": 1, "type": "Out", "quantity": 5, "note": "Satış" }

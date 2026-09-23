@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using StokTakip.Infrastructure.Identity;
 using Xunit;
 
@@ -115,6 +117,32 @@ public sealed class UserManagementTests : IAsyncLifetime
             Ct);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    /// <summary>
+    /// D12 inside Identity: UserService's pre-check is one caller's habit, not a rule. Going to
+    /// UserManager directly — with a user name of its own, so the user-name check cannot answer
+    /// for the e-mail — the duplicate must come back as Identity's own refusal: not a success,
+    /// and not the unique index's exception either.
+    /// </summary>
+    [Fact]
+    public async Task UserManager_yinelenen_epostayi_DuplicateEmail_ile_reddediyor()
+    {
+        var existing = await TestUsers.CreateCalisanAsync(_db.Factory, Ct);
+        using var scope = _db.Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var result = await userManager.CreateAsync(
+            new ApplicationUser
+            {
+                UserName = $"t3-d12-{Guid.NewGuid():N}@stok.local",
+                Email = existing.Email,
+                FullName = "D12 Kopya"
+            },
+            NewPassword);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Errors, e => e.Code == nameof(IdentityErrorDescriber.DuplicateEmail));
     }
 
     /// <summary>

@@ -12,4 +12,6 @@ public sealed class UpdateCategoryRequest
     public string? Description { get; set; }
 
     public bool IsActive { get; set; }
+
+    public uint RowVersion { get; set; }
 }

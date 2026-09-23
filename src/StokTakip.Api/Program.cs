@@ -26,7 +26,9 @@ using StokTakip.Infrastructure.Identity;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default"), npgsql => npgsql
+        .ExecutionStrategy(dependencies => new TransientRetryStrategy(dependencies))
+        .CommandTimeout(TransientRetryStrategy.CommandTimeoutSeconds)));
 
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
