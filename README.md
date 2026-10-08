@@ -18,8 +18,8 @@ admin'dedir.
 
 - Kategori, tedarikçi ve ürün için tam CRUD.
 - Stok giriş/çıkış hareketleri; hareket kaydı ile stok miktarı tek işlemde güncellenir.
-- Ürün araması (ad, SKU, kategori, tedarikçi); kategori, tedarikçi, düşük stok ve pasif
-  kayıt filtreleri; sayfalama.
+- Ürün araması (ad, SKU, kategori, tedarikçi), Türkçe karakter ve büyük/küçük harf
+  duyarsız; kategori, tedarikçi, düşük stok ve pasif kayıt filtreleri; sayfalama.
 - Düşük stok ve pasif ürün rozetleri, stok değeri özeti.
 - Gerçek zamanlı envanter: bir kullanıcının girdiği hareket, açık olan diğer oturumların
   ürün listesinde ve özet kutularında sayfa yenilemeden görünür.
@@ -28,7 +28,10 @@ admin'dedir.
   üretilenler girişte görünür.
 - Eşzamanlılık koruması: aynı ürünü iki kişi aynı anda düzenlerse ikincisi çakışma uyarısı
   alır, kayıp güncelleme oluşmaz.
+- Tekrar güvenli stok hareketi: aynı istek yeniden gönderilirse hareket ikinci kez
+  kaydedilmez (idempotency anahtarı).
 - Rol tabanlı yetkilendirme (Admin / Çalışan), JWT ile oturum.
+- Giriş koruması: art arda hatalı denemede hesap kilitleme ve giriş isteklerine hız sınırı.
 - Çift taraflı form doğrulama (backend DataAnnotations + frontend zod).
 
 ## Teknolojiler
@@ -127,8 +130,8 @@ dotnet test -e "STOKTAKIP_TEST_DB=Host=localhost;Port=5433;Database=stoktakip_te
 
 | Proje | Test |
 |---|---|
-| `tests/StokTakip.UnitTests` | 9 |
-| `tests/StokTakip.IntegrationTests` | 174 |
+| `tests/StokTakip.UnitTests` | 50 |
+| `tests/StokTakip.IntegrationTests` | 316 |
 
 Testler `stoktakip_test` adında ayrı bir veritabanı kullanır ve her koşuda onu silip
 yeniden oluşturur; uygulamanın veritabanına (`stoktakip`) dokunulmaz. Bağlantı dizesi
